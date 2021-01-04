@@ -1,0 +1,66 @@
+---
+title: "Toxo-analysis-new"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+
+
+```{r, }
+
+dc.data.toxo <- read.csv("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/toxo-DC-counts.csv", row.names = 1, header = T, check.names = FALSE)
+
+meta1 <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/metadata-200430.csv", sep = ",", header = T, row.names = 1)
+
+genes.table.tg <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/gene_name_translation_tg.tab", sep = ",", header = T, row.names = 1)
+
+meta.toxo <- subset(meta1, meta1$cell_class %in% toxo.species)
+head(meta.toxo)
+
+se.toxo <- CreateSeuratObject(dc.data.toxo, min.cells = 3, min.features = 200, project = "DC-TG-FH-T", meta.data = meta.toxo)
+
+VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol = 3, group.by = "cell_class")
+
+se.toxo <- subset(se.toxo, subset = cell_class %in% c("LDM_3h", "LDM_12h", "PTG_3h", "PTG_12h"))
+
+
+VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol = 3, group.by = "cell_class")
+
+
+```
+
+```{r, normalize the data}
+
+se.toxo <- SCTransform(se.toxo)
+
+```
+```{r, Run Dimensionality reduction and umap analysis}
+
+se.toxo <- RunPCA(se.toxo)
+
+print(se.toxo[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(se.toxo, dims = 1:2, reduction = "pca")
+
+DimPlot(se.toxo,  reduction = "pca", group.by = "cell_class")
+
+DimHeatmap(se.toxo, dims = 1:15, cells = 500, balanced = TRUE)
+
+ElbowPlot(se.toxo, ndims= 20, reduction ="pca")
+
+
+se.toxo <- FindNeighbors(se.toxo, dims = 1:9)
+se.toxo <- FindClusters(se.toxo) #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.toxo), 5)
+
+se.toxo <- RunUMAP(se.toxo, dims = 1:9, min.dist = 0.1, spread = 0.5)
+
+se.toxo <- SetIdent(se.toxo, value = "cell_class")
+DimPlot(se.toxo)
+
+#One group of LDM toxo as well as PTG toxo seems to be clustering away from the rest of the cells with toxo : It would be interesting to take these cells and visualise these on the umap for the dc clustering as well as the combined umap for toxo and DCs! and then look if they are in a specific cluster!! 
+
+```
+
