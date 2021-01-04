@@ -48,6 +48,7 @@ dc.data.mus <- dc.data[mus.genes,]
 
 ```
 
+Convert ensembl Ids to gene symbols in the matrix
 
 ```{r make gene symbol annotation file}
 
@@ -81,6 +82,7 @@ rownames(dc.data.mus) <- newnames
 
 ```
 
+Create the seurat pbject for analysis 
 
 ```{r, Create Seuratobject}
 
@@ -92,6 +94,7 @@ se.dc.mus[["percent.mt"]] <- PercentageFeatureSet(se.dc.mus,pattern = "mt-")
 se.dc.mus[["percent.mature"]] <- PercentageFeatureSet(se.dc.mus,pattern = "Ccr7")
 se.dc.mus[["percent.immature"]] <- PercentageFeatureSet(se.dc.mus,pattern = "C5ar1")
 
+grayscale = c("gray5","gray15", "gray30", "gray55", "gray70", "gray85", "gray95", "gray100")
 
 VlnPlot(se.dc.mus, features = c("percent.mature", "percent.immature"), ncol = 2, group.by = "cell_class", cols = grayscale)
 
@@ -138,14 +141,12 @@ se.dc.mus <- RunUMAP(se.dc.mus, dims = 1:10, spread = 0.5, min.dist = 0.1)
 #the spread let's me play around with the coordinates of the distance between the clusters 
 ##default settings are -> min.dist: 0.3, spread: 1
 
-#se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
-
 DimPlot(se.dc.mus, reduction = "umap", group.by = "seurat_clusters") 
 
+DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class")
 
-#saveRDS(se.dc.mus, "~/Dropbox/shared_ankarklev/Franzi-analysis/seurat-objects/seurat-dc-200609")
 
-#se.dc.mus <- readRDS( "~/Dropbox/shared_ankarklev/Franzi-analysis/seurat-objects/seurat-dc-200609")
+saveRDS(se.dc.mus, "~/t.gondi_dc/res/seurat-objects/seurat-dc-2021-01-04")
 
 ```
 
@@ -154,33 +155,17 @@ Code to keep the same coordinates (shape/orientation for umap)
 
 ```{r, umap coordinates and plots}
 
-cUmapcluster <- c("deeppink3", "darkcyan", "darkgoldenrod3", "chartreuse4","darkorange", "brown2", "deepskyblue3", "blueviolet", "firebrick")
+c.cols <- c("deeppink3", "darkcyan", "darkgoldenrod3", "chartreuse4","darkorange", "brown2", "deepskyblue3", "blueviolet", "firebrick")
 
-umap.dc.m.clusters <- DimPlot(se.dc.mus, reduction = "umap", group.by = "seurat_clusters", cols = cUmapcluster)
+umap.dc.m.clusters <- DimPlot(se.dc.mus, reduction = "umap", group.by = "seurat_clusters", cols = c.cols)
 umap.dc.m.cellclass <- DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class", cols = "Dark2")
 
 umap.coordinates.dc <- as.data.frame(Embeddings(se.dc.mus, reduction = "umap"))
 
-#Make Umaps to display with and and without LPS and without LPS/Lysates 
 
-se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
-#without LPS
-noLPS <- WhichCells(se.dc.mus, idents = c("LDM_Lys3h", "PTG_12h", "LDM_12h", "PTG_Lys3h", "LDM_3h", "PTG_3h", "ctrl"))
-pnoLPS.c <- DimPlot(object = se.dc.mus , cells = noLPS, reduction = "umap", group.by = "seurat_clusters")
-pnoLPS.i <- DimPlot(object = se.dc.mus , cells = noLPS, reduction = "umap", group.by = "cell_class")
-pnoLPS.c
-pnoLPS.i
-
-noLysLPS <-  WhichCells(se.dc.mus, idents = c("PTG_12h", "LDM_12h", "LDM_3h", "PTG_3h", "ctrl"))
-pnolysLPS.c <- DimPlot(object = se.dc.mus , cells = noLysLPS , reduction = "umap", group.by = "seurat_clusters")
-pnolysLPS.i <- DimPlot(object = se.dc.mus , cells = noLysLPS , reduction = "umap", group.by = "cell_class")
-pnolysLPS.c
-pnolysLPS.i
-
-
-png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/DC-final-umap.png", width = 35, height = 15, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/DC-final-umap.png", width = 35, height = 15, res = 300, units = "cm") #Units are pixels by default
 print(cowplot::plot_grid(umap.dc.m.cellclass, umap.dc.m.clusters))
-dev.off()
+#dev.off()
 
 
 ```
@@ -189,19 +174,41 @@ dev.off()
 ```{r, calculate percentages of each condition within individual clusters}
 
 #write sapply function to give vector for each cluster and condition and create a dataframe with the information 
+clusters <- c(0:7)
 
-LPS_in_0 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 0))
-LPS_in_1 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 1))
-LPS_in_2 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 2))
-LPS_in_3 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 3))
-LPS_in_4 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 4))
-LPS_in_5 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 5))
-LPS_in_6 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 6))
-LPS_in_7 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 7))
-LPS_in_8 <- length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == 8))
+LPS_perCluster <- sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
 
-LPS_perCluster <- c(LPS_in_0,LPS_in_1,LPS_in_2,LPS_in_3, LPS_in_4, LPS_in_5, LPS_in_6, LPS_in_7, LPS_in_8)
-n1 <- c("cluster0", "cluster1", "cluster2", "cluster3", "cluster4", "cluster5", "cluster6", "cluster7", "cluster8")
+LDM_3h_perCluster <- sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LDM_3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+PTG_3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "PTG_3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+LDM_12h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LDM_12h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+PTG_12h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "PTG_12h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+ctrl_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "ctrl" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+LDM_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LDM_Lys3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+PTG_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "PTG_Lys3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+n1 <- c("cluster0", "cluster1", "cluster2", "cluster3", "cluster4", "cluster5", "cluster6", "cluster7")
 identpercluster <- data.frame(n1, LDM_3h_perCluster, PTG_3h_perCluster, LDM_12h_perCluster, PTG_12h_perCluster, ctrl_perCluster, LDM_Lys3h_perCluster, PTG_Lys3h_perCluster, LPS_perCluster)
 colnames(identpercluster) <- c("cluster", "LDM 3h", "PTG 3h", "LDM 12h", "PTG 12h", "uninfected", "LDM Lysate", "PTG Lysate", "LPS")
 identpercluster <- gather(identpercluster, key = "identity", value = "cellcount", -cluster)
@@ -214,7 +221,7 @@ percent <- function(x){
 identpercluster$percent <- identpercluster[,3]/(sum(identpercluster$cellcount))*100
 
 #Plot results:
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/originialIDpercluster_percent.png", width = 20, height = 10, unit = "cm", res = 300)
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/originialIDpercluster_percent.png", width = 20, height = 10, unit = "cm", res = 300)
 print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
   geom_bar(position = "stack", stat = "identity") +
   xlab("") +
@@ -222,7 +229,7 @@ print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
   scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
   theme_classic() + 
   theme(legend.title = element_blank()))
-dev.off()
+#dev.off()
 
 #calculate percentages of individual clusters with normalizing to the individual cluster 
 
@@ -251,7 +258,7 @@ c8.p$percent.cluster <-  c8.p$cellcount/sum(c8.p$cellcount)*100
 
 identpercluster1 <- dplyr::bind_rows(c0.p,c1.p, c2.p,c3.p, c4.p, c5.p, c6.p, c7.p, c8.p)
 
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/cellIDpercluster-norm.png", width = 20, height = 10, units = "cm", res = 300) 
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/cellIDpercluster-norm.png", width = 20, height = 10, units = "cm", res = 300) 
   print(ggplot(identpercluster1, aes(cluster, percent.cluster, fill= identity)) +
   geom_bar(position = "stack", stat = "identity") +
   xlab("") +
@@ -259,7 +266,7 @@ png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/cellIDp
   scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
   theme_classic() + 
   theme(legend.title = element_blank()))
-  dev.off()
+#  dev.off()
 
 ```
 
@@ -273,7 +280,7 @@ dc.markers.original <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold
 
 dc.markers.original <- subset(dc.markers.original, p_val_adj < 0.05)
 
-write.xlsx(dc.markers.original, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-orginal-IDs.xlsx")
+#write.xlsx(dc.markers.original, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-orginal-IDs.xlsx")
 
 
 ```
@@ -289,16 +296,16 @@ dc.12h.markers <- FindMarkers(se.dc.mus, ident.1 = 3, ident.2 = 5, min.pct = 0.2
 #Think about a nice way to vizualise these markers based on average-logFC in both directions 
 volcano12h.3.5 <- EnhancedVolcano(dc.12h.markers , lab = rownames(dc.12h.markers),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
 volcano12h.3.5
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcano-12hDEG-leftPTG-rightLDM.png", width = 15, height = 25, units = "cm", res= 300)
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcano-12hDEG-leftPTG-rightLDM.png", width = 15, height = 25, units = "cm", res= 300)
 print(volcano12h.3.5)
-dev.off()
+#dev.off()
 
 dc.12h.markers <- subset(dc.12h.markers, p_val_adj < 0.01)
 dc.12h.markers$external_gene_name <- rownames(dc.12h.markers)
 genetable.12h3.5 <- subset(genes.table, external_gene_name %in% rownames(dc.12h.markers))
 dc.12h.markers <- dplyr::left_join(dc.12h.markers, genetable.12h3.5, by = "external_gene_name")
 
-write.xlsx(dc.12h.markers,"~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/DEG-cluster3-cluster5.xlsx", row.names = T)
+#write.xlsx(dc.12h.markers,"~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/DEG-cluster3-cluster5.xlsx", row.names = T)
 
 
 se.dc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
@@ -308,7 +315,7 @@ top.20.all <- DoHeatmap(se.dc.mus, features = top20.all$gene)
 top.20.all
 
 #png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/heatmap-DC-only-total-top20.png", width = 30, height = 20, units = "cm", res = 300)
-#print(top.20.all)
+print(top.20.all)
 #dev.off()
 
 dc.markers.C0 <- subset(se.dc.markers, se.dc.markers$cluster == 0)
@@ -405,9 +412,9 @@ vp.dc0
 
 #Export the plots
 
-png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Top20-DEG-DC-seCluster-VlnPlot/DEG-C6-DC-top20.png", width = 60, height = 50, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Top20-DEG-DC-seCluster-VlnPlot/DEG-C6-DC-top20.png", width = 60, height = 50, res = 300, units = "cm") #Units are pixels by default
 print(vp.dc6)
-dev.off()
+#dev.off()
 
 ```
 
@@ -417,9 +424,9 @@ Export the heatmap and the marker lists as pngs
 
 ```{r, }
 
-png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Heatmap-top20-clusterbased.png", width = 50, height = 40, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Heatmap-top20-clusterbased.png", width = 50, height = 40, res = 300, units = "cm") #Units are pixels by default
 print(top.20.all)
-dev.off()
+#dev.off()
 
 lapply(subset.markers.l, function(x){
   write.xlsx(x, "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Markerlist-clusterbased.xlsx")
