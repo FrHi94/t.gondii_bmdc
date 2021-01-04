@@ -1,0 +1,349 @@
+---
+title: "DC-analysis-new"
+output: html_notebook
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, load required packages}
+library(Seurat)
+library(dplyr)
+library(Matrix)
+library(gtable)
+library(grid)
+library(gridExtra)
+library(rlang)
+library(org.Mm.eg.db)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
+library(annotate)
+library(ggplot2)
+library(biomaRt)
+library(tidyr)
+library(circlize)
+library(plotly)
+library(pheatmap)
+library(ComplexHeatmap)
+library(forcats)
+library(patchwork)
+library(sctransform)
+library(openxlsx)
+suppressMessages(require(biomaRt))
+```
+
+use Biomart to translate to gene names 
+
+```{r Biomart preparation for annotation}
+
+#use ensembl mart 
+
+mart <- useMart("ensembl")
+
+mart <- useDataset("mmusculus_gene_ensembl", mart = mart)
+
+genes.table <- getBM(filters = "ensembl_gene_id", attributes = c("ensembl_gene_id", "external_gene_name", "description", "gene_biotype", "entrezgene_id"), values = rownames(dc.data.mus), mart = mart )
+
+head(genes.table)
+
+write.table(genes.table, file = "gene_name_translation.tab")
+
+head(genes.table)
+
+```
+
+```{r, import expression data and subset it}
+
+#import expression matrix first 
+
+dc.data <- read.csv("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/cnt_normalized 3.csv", row.names = 1, header = T, check.names = FALSE)
+
+#subset for only mouse genes: 
+mus.genes <- rownames(dc.data)[grep("ENSMUSG",rownames(dc.data))]
+head(mus.genes)
+dc.data.mus <- dc.data[mus.genes,]
+
+
+m.mus <- match(rownames(dc.data.mus), genes.table$ensembl_gene_id)
+
+#merge ensembl name and gene ID
+newnames.mus <- apply(cbind(as.vector(genes.table$external_gene_name)[m.mus],rownames(dc.data.mus)), 1, paste, collapse="-")
+
+#set merged new name as rownames for gene entries
+
+rownames(dc.data.mus) <- newnames.mus
+
+```
+
+```{r, Create Seuratobject}
+
+meta1 <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/metadata-200430.csv", sep = ",", header = T, row.names = 1)
+
+se.dc.mus <- CreateSeuratObject(dc.data.mus, min.cells = 3, min.features = 200, project = "DC-TG-FH-M", meta.data = meta1)
+
+se.dc.mus[["percent.mt"]] <- PercentageFeatureSet(se.dc.mus,pattern = "mt-")
+
+VlnPlot(se.dc.mus, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol = 3, group.by = "cell_class")
+
+#subset the cells with a high percentage of mitochondrial genes 
+se.dc.mus <- subset(se.dc.mus, subset = percent.mt < 20)
+
+#subset everything but the LPS cells
+se.dc.mus <- subset(se.dc.mus, subset = cell_class %in% c("ctrl", "LDM_12h", "LDM_3h", "LDM_Lys3h", "PTG_Lys3h", "PTG_12h", "PTG_3h"))
+
+
+```
+
+```{r, normalize the data}
+
+#Run in console 
+se.dc.mus <- SCTransform(se.dc.mus)
+
+```
+
+```{r, Run dimensionality reduction and clustering}
+
+se.dc.mus <- RunPCA(se.dc.mus)
+
+print(se.dc.mus[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(se.dc.mus, dims = 1:2, reduction = "pca")
+
+DimPlot(se.dc.mus,  reduction = "pca", group.by = "cell_class")
+
+DimHeatmap(se.dc.mus, dims = 1:15, cells = 500, balanced = TRUE)
+
+ElbowPlot(se.dc.mus, ndims= 20, reduction ="pca")
+
+se.dc.mus <- FindNeighbors(se.dc.mus, dims = 1:10)
+se.dc.mus <- FindClusters(se.dc.mus) #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.dc.mus), 5)
+
+se.dc.mus <- RunUMAP(se.dc.mus, dims = 1:10)
+
+umap.dc.t.clusters <- DimPlot(se.dc.mus, reduction = "umap")
+#SetIdenties to cell_class and plot 
+umap.dc.t.cellclass <- DimPlot(se.dc.mus, reduction = "umap")
+umap.dc.t.cellclass
+
+saveRDS(se.dc.mus, "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/seurat-dc.mus-new-200517")
+
+se.dc.mus <- readRDS( "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/seurat-dc.mus-new-200517")
+
+```
+
+Plot the umaps and save them as a png
+
+```{r, umap plots pngs}
+
+umapsDC.only <- cowplot::plot_grid(umap.dc.t.clusters,NULL,umap.dc.t.cellclass, ncol = 3, nrow = 1, rel_widths = c(1,0.2,1))
+umapsDC.only
+
+png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/umaps-DC-noLPS-new.png", width = 35, height = 15, res = 300, units = "cm") #Units are pixels by default
+print(umapsDC.only)
+dev.off()
+
+
+```
+```{r, plot genes of interest (Barragan) on umap}
+
+GOI <- c("TIMP1", "TIMP2", "MMP2", "MMP9", "EGR1", "C-MET", "HGF", "EGFR", "PTK2", "PYK2", "ITGB1", "ITGB2", "GAD67", "CACNA1C", "CACNA1D", "CACNA1F", "GABRA1", "NKCC1", "NKCC2", "CCR7", "CCR5", "IL-12", "IL-2")
+
+goi <- c("Ccr7-ENSMUSG00000037944", "Timp1-ENSMUSG00000001131", "Timp2-ENSMUSG00000017466", "Mmp2-ENSMUSG00000031740", "Mmp9-ENSMUSG00000017737","Egr1-ENSMUSG00000038418", "Egfr-ENSMUSG00000020122", "Ptk2-ENSMUSG00000022607", "Hgf-ENSMUSG00000028864", "Ccr5-ENSMUSG00000079227")
+
+p.goi <- FeaturePlot(se.dc.mus, features = goi, label = TRUE)
+
+png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/umaps-selected-goi-1.png", width = 35, height = 15, res = 300, units = "cm") #Units are pixels by default
+print(p.goi)
+dev.off()
+
+
+
+```
+
+```{r, Find Markers according to Cluster identity and subset them for later gprofiler analysis}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
+
+se.dc.markers <- FindAllMarkers(se.dc.mus, only.pos = T, min.pct = 0.25, logfc.threshold = 0.25)
+
+dc.12h.markers <- FindMarkers(se.dc.mus, ident.1 = 3, ident.2 = 5, min.pct = 0.25, logfc.threshold = 0.5)
+#Think about a nice way to vizualise these markers based on average-logFC in both directions 
+
+dc.12h.markers <- subset(dc.12h.markers, p_val_adj < 0.01)
+
+external_gene_name <- sapply(strsplit(rownames(se.dc.markers), "-" ), "[[", 1)
+ensembl_gene_id <- sapply(strsplit(rownames(se.dc.markers), "-" ), "[[", 2)
+markerannotation <- data.frame(rownames(se.dc.markers), external_gene_name, ensembl_gene_id) %>% rename(  gene = rownames.se.dc.markers.)
+
+se.dc.markers <- left_join(se.dc.markers, markerannotation, by = "gene")
+
+
+se.dc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+
+top20.all <- se.dc.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_logFC)
+top.20.all <- DoHeatmap(se.dc.mus, features = top20.all$gene)
+top.20.all
+
+
+dc.markers.C0 <- subset(se.dc.markers, se.dc.markers$cluster == 0)
+dc.markers.C1 <- subset(se.dc.markers, se.dc.markers$cluster == 1)
+dc.markers.C2 <- subset(se.dc.markers, se.dc.markers$cluster == 2)
+dc.markers.C3 <- subset(se.dc.markers, se.dc.markers$cluster == 3)
+dc.markers.C4 <- subset(se.dc.markers, se.dc.markers$cluster == 4)
+dc.markers.C5 <- subset(se.dc.markers, se.dc.markers$cluster == 5)
+dc.markers.C6 <- subset(se.dc.markers, se.dc.markers$cluster == 6)
+
+
+marker.list <- list(dc.markers.C0,dc.markers.C1, dc.markers.C2, dc.markers.C3,dc.markers.C4, dc.markers.C5, dc.markers.C6)
+dc.markers.n <- c("dc.markers.C0","dc.markers.C1", "dc.markers.C2", "dc.markers.C3","dc.markers.C4", "dc.markers.C5", "dc.markers.C6")
+
+subset.markers.l <- setNames(lapply(marker.list, function(x) {
+  subset(x, avg_logFC > 0.5 & p_val_adj < 0.01)
+}), nm = dc.markers.n)
+
+
+```
+
+Export the heatmap and the marker lists as pngs 
+
+```{r, }
+
+png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Heatmap-top20-clusterbased.png", width = 50, height = 40, res = 300, units = "cm") #Units are pixels by default
+print(top.20.all)
+dev.off()
+
+lapply(subset.markers.l, function(x){
+  write.xlsx(x, "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Markerlist-clusterbased.xlsx")
+})
+
+write.xlsx(subset.markers.l$dc.markers.C0,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C0.xlsx")
+write.xlsx(subset.markers.l$dc.markers.C1,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C1.xlsx")
+write.xlsx(subset.markers.l$dc.markers.C2,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C2.xlsx")
+write.xlsx(subset.markers.l$dc.markers.C3,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C3.xlsx")
+write.xlsx(subset.markers.l$dc.markers.C4,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C4.xlsx")
+write.xlsx(subset.markers.l$dc.markers.C5,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C5.xlsx")
+write.xlsx(subset.markers.l$dc.markers.C6,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C6.xlsx")
+
+```
+
+
+```{r, run GO term analysis with different databases}
+
+
+gostres.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x$external_gene_name, organism = "mmusculus")
+}), nm = c("gostres.C0", "gostres.C1", "gostres.C2", "gostres.C3", "gostres.C4", "gostres.C5", "gostres.C6"))
+
+#subset for GO:BP only
+gostres.BP.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x$external_gene_name, organism = "mmusculus", sources = "GO:BP")
+}), nm = c("gostres.BP.C0", "gostres.BP.C1", "gostres.BP.C2", "gostres.BP.C3", "gostres.BP.C4", "gostres.BP.C5", "gostres.BP.C6"))
+
+#subset for Kegg only
+
+gostres.KEGG.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x$external_gene_name, organism = "mmusculus", sources = "KEGG")
+}), nm = c("gostres.KEGG.C0", "gostres.KEGG.C1", "gostres.KEGG.C2", "gostres.KEGG.C3", "gostres.KEGG.C4", "gostres.KEGG.C5", "gostres.KEGG.C6"))
+
+
+#Plot the data
+
+p6 <- ggplot(head(gostres.BP.l$gostres.BP.C6$result, 20), aes(reorder(term_name, -log10(p_value)), -log10(p_value), fill = -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black") +
+  coord_flip() +
+  scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 9, name = "Reds")) + 
+  xlab("Biological Process")+
+  ylab("Enrichment Score") +
+  ggtitle("enriched GO terms for cluster 6")
+
+
+GO.all <- cowplot::plot_grid(p0,NULL,p1,p2,NULL,p3,p4,NULL,p5,p6,NULL,NULL, ncol= 3, rel_widths = c(5,0.1,5))
+GO.all
+
+#Save the plots all together 
+png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/GO-enrichments-clusterbased.png", width = 50, height = 60, res = 300, units = "cm") #Units are pixels by default
+print(GO.all)
+dev.off()
+
+#Save the plots individually
+
+png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/GO-enrichment/GO-enrichment-C0.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
+print(p0)
+dev.off()
+
+```
+
+In addition: Try to run the DGEA according to the original cell-identity and look at the results and the GO-term analysis in the DCs! 
+
+```{r, DEGs according to original cell identity, heatmap, GOterms}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
+
+markers.cellident <- FindAllMarkers(se.dc.mus, only.pos = T, min.pct = 0.25, logfc.threshold = 0.25)
+
+external_gene_name <- sapply(strsplit(rownames(markers.cellident), "-" ), "[[", 1)
+ensembl_gene_id <- sapply(strsplit(rownames(markers.cellident), "-" ), "[[", 2)
+markerannotation <- data.frame(rownames(markers.cellident), external_gene_name, ensembl_gene_id) %>% rename(  gene = rownames.markers.cellident.)
+
+markers.cellident <- left_join(markers.cellident, markerannotation, by = "gene")
+
+
+markers.cellident %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+
+top20.all.i <- markers.cellident %>% group_by(cluster) %>% top_n(n=20, wt =avg_logFC)
+top.20.all.i <- DoHeatmap(se.dc.mus, features = top20.all.i$gene)
+top.20.all.i
+
+markers.control <- subset(markers.cellident, markers.cellident$cluster == "ctrl")
+markers.LDM12h <- subset(markers.cellident, markers.cellident$cluster == "LDM_12h")
+markers.LDM_3h <- subset(markers.cellident, markers.cellident$cluster == "LDM_3h")
+markers.LDM_Lys3h <- subset(markers.cellident, markers.cellident$cluster == "LDM_Lys3h")
+markers.PTG_12h <- subset(markers.cellident, markers.cellident$cluster == "PTG_12h")
+markers.PTG_3h <- subset(markers.cellident, markers.cellident$cluster == "PTG_3h")
+markers.PTG_Lys3h <- subset(markers.cellident, markers.cellident$cluster == "PTG_Lys3h")
+
+
+marker.list.cellident <- list(markers.control, markers.LDM12h,markers.LDM_3h, markers.LDM_Lys3h, markers.PTG_12h,markers.PTG_3h, markers.PTG_Lys3h)
+dc.markers.i.n <- c("ctrl", "LDM_12h","LDM_3h","LDM_Lys3h","PTG_12h","PTG_3h","PTG_Lys3h")
+
+subset.i.l <- setNames(lapply(marker.list.cellident, function(x) {
+  subset(x, avg_logFC > 0.5 & p_val_adj < 0.01)
+}), nm = dc.markers.i.n)
+
+
+###GO terms 
+
+gostres.i.l <- setNames(lapply(subset.i.l, function(x){
+  gost(query = x$external_gene_name, organism = "mmusculus")
+}), nm = dc.markers.i.n)
+
+#subset for GO:BP only
+gostres.BP.i.l <- setNames(lapply(subset.i.l, function(x){
+  gost(query = x$external_gene_name, organism = "mmusculus", sources = "GO:BP")
+}), nm = dc.markers.i.n)
+
+#subset for Kegg only
+
+gostres.KEGG.i.l <- setNames(lapply(subset.i.l, function(x){
+  gost(query = x$external_gene_name, organism = "mmusculus", sources = "KEGG")
+}), nm = dc.markers.i.n)
+
+
+#Plot the data
+
+##For BP we only get significant data for 12h timepoints!
+
+ggplot(head(gostres.i.l$LDM_12h$result, 20), aes(reorder(term_name, -log10(p_value)), -log10(p_value), fill = -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black") +
+  coord_flip() +
+  scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 9, name = "Reds")) + 
+  xlab("Biological Process")+
+  ylab("Enrichment Score")
+
+```
+
+
