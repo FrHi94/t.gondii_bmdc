@@ -1,0 +1,62 @@
+---
+title: "heatmaps"
+author: "Franziska Hildebrandt"
+date: "1/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r generate matrix to plot heatmaps}
+
+gene_data <- data.frame(t(as.matrix(immature_set@assays$RNA@data)),cluster=immature_set$cell_class_maturation,check.names = F)
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+
+```
+
+```{r}
+gene_data <- data.frame(t(as.matrix(toxo@assays$RNA@data)),cluster=toxo$group,check.names = F)
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+```
+
+
+```{r}
+as.data.frame(phmat1)
+phmat1 <- as.data.frame(phmat1)
+m <- as.data.frame(m, col.names = "gene")
+names(m)[1]<- paste("gene")
+phmat1 <- subset(phmat1, gene %in% m$gene)
+phmat1 <- as.matrix(phmat1)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

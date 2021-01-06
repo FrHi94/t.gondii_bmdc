@@ -29,7 +29,8 @@ library(patchwork)
 library(sctransform)
 library(openxlsx)
 suppressMessages(require(biomaRt))
-
+library(EnhancedVolcano)
+library(pheatmap)
 ```
 
 Import the count matrix of the single cell sequencing experiment and subset it, so it only contains the counts for the mouse genome
@@ -48,7 +49,7 @@ dc.data.mus <- dc.data[mus.genes,]
 
 ```
 
-Convert ensembl Ids to gene symbols in the matrix
+Convert ensembl-Ids to gene symbols in the matrix
 
 ```{r make gene symbol annotation file}
 
@@ -110,7 +111,7 @@ print(VlnPlot(se.dc.mus, features = c("nCount_RNA", "nFeature_RNA"), ncol = 2, g
 
 ```
 
-```{r, normalize the data}
+```{r, normalize the data, results="hide"}
 
 #Run in console 
 se.dc.mus <- SCTransform(se.dc.mus)
@@ -149,17 +150,16 @@ DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class")
 saveRDS(se.dc.mus, "~/t.gondi_dc/res/seurat-objects/seurat-dc-2021-01-04")
 
 ```
-
-
-Code to keep the same coordinates (shape/orientation for umap)
+Plot the Umap and visualize the clusters as well as the original cell identity
 
 ```{r, umap coordinates and plots}
 
 c.cols <- c("deeppink3", "darkcyan", "darkgoldenrod3", "chartreuse4","darkorange", "brown2", "deepskyblue3", "blueviolet", "firebrick")
-
+cell.cols <- c("forestgreen", "blue3","dodgerblue3", "olivedrab3","red4", "magenta4", "deeppink3","seagreen3")
 umap.dc.m.clusters <- DimPlot(se.dc.mus, reduction = "umap", group.by = "seurat_clusters", cols = c.cols)
-umap.dc.m.cellclass <- DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class", cols = "Dark2")
+umap.dc.m.cellclass <- DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class", cols = cell.cols)
 
+#extract the umap coordinates for possible croos-references
 umap.coordinates.dc <- as.data.frame(Embeddings(se.dc.mus, reduction = "umap"))
 
 
@@ -231,6 +231,9 @@ print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
   theme(legend.title = element_blank()))
 #dev.off()
 
+```
+
+```{r, scale the calcualted percentages}
 #calculate percentages of individual clusters with normalizing to the individual cluster 
 
 c0.p <- subset(identpercluster, cluster == "cluster0")
@@ -270,9 +273,11 @@ identpercluster1 <- dplyr::bind_rows(c0.p,c1.p, c2.p,c3.p, c4.p, c5.p, c6.p, c7.
 
 ```
 
+Next we perform a variety of differential gene expression analysis based on multiple factors and conditions
 
+1. Find markers based on the original cell class in the metadata, i.e. based on the experimental condition
 
-```{r, find markers based on original identities}
+```{r, Find markers for original identities}
 
 se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
 
@@ -285,29 +290,51 @@ dc.markers.original <- subset(dc.markers.original, p_val_adj < 0.05)
 
 ```
 
-```{r, Find Markers according to Cluster identity and subset them for later gprofiler analysis}
+2. Find markers for the identified clusters in the cluster analysis 
+
+```{r, Find Markers according to cluster identity and subset them for later gprofiler analysis}
 
 se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
 
+#Find markers for all clusters
 se.dc.markers <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold = 0.5)
-se.dc.markers <- subset(se.dc.markers, p_val_adj < 0.01)
 
+#subset them for only significantly differential expressed genes 
+se.dc.markers <- subset(se.dc.markers, p_val_adj < 0.05)
+
+#look at differential expressed genes between the two clusters that comprise most of the 12h time-point (independent of strain, cluster 3 and cluster 5)
 dc.12h.markers <- FindMarkers(se.dc.mus, ident.1 = 3, ident.2 = 5, min.pct = 0.25, logfc.threshold = 0.5)
-#Think about a nice way to vizualise these markers based on average-logFC in both directions 
+dc.12h.markers <- subset(dc.12h.markers, p_val_adj < 0.01 & dc.12h.markers$avg_logFC > 2)
+#visualize in a volcano plot
 volcano12h.3.5 <- EnhancedVolcano(dc.12h.markers , lab = rownames(dc.12h.markers),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
-volcano12h.3.5
+
 #png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcano-12hDEG-leftPTG-rightLDM.png", width = 15, height = 25, units = "cm", res= 300)
 print(volcano12h.3.5)
 #dev.off()
 
-dc.12h.markers <- subset(dc.12h.markers, p_val_adj < 0.01)
+#make a table for these genes to export them 
 dc.12h.markers$external_gene_name <- rownames(dc.12h.markers)
 genetable.12h3.5 <- subset(genes.table, external_gene_name %in% rownames(dc.12h.markers))
 dc.12h.markers <- dplyr::left_join(dc.12h.markers, genetable.12h3.5, by = "external_gene_name")
 
 #write.xlsx(dc.12h.markers,"~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/DEG-cluster3-cluster5.xlsx", row.names = T)
 
+```
 
+```{r, look at correlation between genes in cluster 3 and cluster 5}
+
+cl2.genes <- subset(se.dc.markers, se.dc.markers$cluster == 2) 
+cl5.genes <- subset(se.dc.markers, se.dc.markers$cluster == 5)
+
+cor.12h <- cor(t(as.matrix(se.dc.mus@assays$SCT@data[c(dc.markers.LDM.12h$gene, dc.markers.PTG.12h$gene), ])))
+
+corrplot(cor.12h , method="color", tl.col = "black", order = "FPC", col=colorRampPalette(c("blue4","white","red3"))(200), cl.lim = c(-1,1))
+
+```
+
+
+```{r, display the differential expressed genes in a heatmap, width = 20, height =10}
+se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
 se.dc.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
 
 top20.all <- se.dc.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_logFC)
@@ -317,6 +344,22 @@ top.20.all
 #png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/heatmap-DC-only-total-top20.png", width = 30, height = 20, units = "cm", res = 300)
 print(top.20.all)
 #dev.off()
+clust.tree <- BuildClusterTree(se.dc.mus, assay = "SCT", slot = "data")
+clust.tree <- Tool(clust.tree, slot = "BuildClusterTree")
+ggtree(clust.tree, layout = "roundrect") + 
+  geom_tiplab() +
+  geom_hilight(node = 7, fill = "seagreen3", alpha =.6) +
+  geom_hilight(node = 4, fill = "olivedrab3" , alpha =.6) +
+  geom_hilight(node = 3, fill = "forestgreen" , alpha =.6) +
+  geom_hilight(node = 1, fill = "dodgerblue" , alpha =.6) +
+  geom_hilight(node = 8, fill = "red3" , alpha =.6) +
+  geom_hilight(node = 2, fill = "blue3" , alpha =.6) +
+  geom_hilight(node = 6, fill = "magenta4" , alpha =.6) +
+  geom_hilight(node = 5, fill = "deeppink3" , alpha =.6)
+
+```
+
+```{r,  }
 
 dc.markers.C0 <- subset(se.dc.markers, se.dc.markers$cluster == 0)
 top20.C0.dc <- dc.markers.C0 %>% top_n(n=20, wt =avg_logFC)
@@ -337,7 +380,6 @@ dc.markers.C3 <- subset(se.dc.markers, se.dc.markers$cluster == 3)
 top20.C3.dc <- dc.markers.C3 %>% top_n(n=20, wt =avg_logFC)
 #extract the gene names of these as character vectors for plotting reasons
 C3.dc.n <- top20.C3.dc$gene
-
 
 dc.markers.C4 <- subset(se.dc.markers, se.dc.markers$cluster == 4)
 top20.C4.dc <- dc.markers.C4 %>% top_n(n=20, wt =avg_logFC)
@@ -375,72 +417,6 @@ subset.markers.l <- setNames(lapply(marker.list, function(x) {
 
 ```
 
-Plot the top 20 marker genes identified by clustering of the DC data exclusively on the combined 2-species umap
-
-```{r, plotting of 20 most DEG on 2-species umap}
-
-
-p.dc0.combined <- FeaturePlot(se.dc, features = C0.dc.n)
-p.dc1.combined <- FeaturePlot(se.dc, features = C1.dc.n)
-p.dc2.combined <- FeaturePlot(se.dc, features = C2.dc.n)
-p.dc3.combined <- FeaturePlot(se.dc, features = C3.dc.n)
-p.dc4.combined <- FeaturePlot(se.dc, features = C4.dc.n)
-p.dc5.combined <- FeaturePlot(se.dc, features = C5.dc.n)
-p.dc6.combined <- FeaturePlot(se.dc, features = C6.dc.n)
-
-
-p.dc0.combined 
-p.dc1.combined 
-p.dc2.combined 
-p.dc3.combined
-p.dc4.combined 
-p.dc5.combined
-p.dc6.combined 
-
-#Violinplots for the Tg-Data in violin-plots
-
-vp.dc0 <- VlnPlot(se.dc.mus, features = C0.dc.n)
-vp.dc1 <- VlnPlot(se.dc.mus, features = C1.dc.n)
-vp.dc2 <- VlnPlot(se.dc.mus, features = C2.dc.n)
-vp.dc3 <- VlnPlot(se.dc.mus, features = C3.dc.n)
-vp.dc4 <- VlnPlot(se.dc.mus, features = C4.dc.n)
-vp.dc5 <- VlnPlot(se.dc.mus, features = C5.dc.n)
-vp.dc6 <- VlnPlot(se.dc.mus, features = C6.dc.n)
-
-vp.dc0
-
-
-#Export the plots
-
-#png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Top20-DEG-DC-seCluster-VlnPlot/DEG-C6-DC-top20.png", width = 60, height = 50, res = 300, units = "cm") #Units are pixels by default
-print(vp.dc6)
-#dev.off()
-
-```
-
-
-
-Export the heatmap and the marker lists as pngs 
-
-```{r, }
-
-#png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Heatmap-top20-clusterbased.png", width = 50, height = 40, res = 300, units = "cm") #Units are pixels by default
-print(top.20.all)
-#dev.off()
-
-lapply(subset.markers.l, function(x){
-  write.xlsx(x, "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/Markerlist-clusterbased.xlsx")
-})
-
-write.xlsx(subset.markers.l$dc.markers.C0,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C0.xlsx")
-write.xlsx(subset.markers.l$dc.markers.C1,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C1.xlsx")
-write.xlsx(subset.markers.l$dc.markers.C2,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C2.xlsx")
-write.xlsx(subset.markers.l$dc.markers.C3,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C3.xlsx")
-write.xlsx(subset.markers.l$dc.markers.C4,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C4.xlsx")
-write.xlsx(subset.markers.l$dc.markers.C5,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C5.xlsx")
-write.xlsx(subset.markers.l$dc.markers.C6,"/Users/franziskahildebrandt/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/markers-list-C6.xlsx")
-
-```
 
 ```{r, run GO term GO term analyis based on original condition}
 
@@ -450,14 +426,14 @@ dc.markers.original <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold
 
 dc.markers.original <- subset(dc.markers.original, p_val_adj < 0.05)
 
-dc.markers.ctrl <- subset(dc.markers.original, dc.markers.original$cell_class == "ctrl")
-dc.markers.LDM.12h <- subset(dc.markers.original, dc.markers.original$cell_class == "LDM_12h")
-dc.markers.LDM.3h <- subset(dc.markers.original, dc.markers.original$cell_class == "LDM_3h")
-dc.markers.LDM_Lys3h <- subset(dc.markers.original, dc.markers.original$cell_class == "LDM_Lys3h")
-dc.markers.LPS <- subset(dc.markers.original, dc.markers.original$cell_class == "LPS")
-dc.markers.PTG.12h <- subset(dc.markers.original, dc.markers.original$cell_class == "PTG_12h")
-dc.markers.PTG.3h <- subset(dc.markers.original, dc.markers.original$cell_class == "PTG_3h")
-dc.markers.PTG_Lys3h <- subset(dc.markers.original, dc.markers.original$cell_class == "PTG_Lys3h")
+dc.markers.ctrl <- subset(dc.markers.original, dc.markers.original$cluster == "ctrl")
+dc.markers.LDM.12h <- subset(dc.markers.original, dc.markers.original$cluster == "LDM_12h")
+dc.markers.LDM.3h <- subset(dc.markers.original, dc.markers.original$cluster == "LDM_3h")
+dc.markers.LDM_Lys3h <- subset(dc.markers.original, dc.markers.original$cluster == "LDM_Lys3h")
+dc.markers.LPS <- subset(dc.markers.original, dc.markers.original$cluster == "LPS")
+dc.markers.PTG.12h <- subset(dc.markers.original, dc.markers.original$cluster == "PTG_12h")
+dc.markers.PTG.3h <- subset(dc.markers.original, dc.markers.original$cluster == "PTG_3h")
+dc.markers.PTG_Lys3h <- subset(dc.markers.original, dc.markers.original$cluster == "PTG_Lys3h")
 
 
 original.marker.list <- list(dc.markers.ctrl, dc.markers.LDM.12h, dc.markers.LDM.3h, dc.markers.LDM_Lys3h, dc.markers.LPS, dc.markers.PTG.12h, dc.markers.PTG.3h, dc.markers.PTG_Lys3h)
@@ -469,6 +445,7 @@ subset.markers.l <- setNames(lapply(marker.list, function(x) {
 }), nm = dc.markers.n)
 
 ```
+
 
 ```{r, run GO term analysis with different databases}
 
@@ -501,7 +478,7 @@ p.0 <- ggplot(head(gostres.BP.l$gostres.BP.C4$result, 10), aes(reorder(term_name
   xlab("Biological Process")+
   ylab("Enrichment Score") +
   theme(axis.text.y = element_text(size = 12), axis.title = element_blank(), panel.background = element_blank())
-p.
+
 
 
 GO.all.1 <- cowplot::plot_grid(p.go.0,NULL,p.go.4,NULL,p.go.6, ncol= 5, nrow = 1, rel_widths = c(5,0.1,5,0.1,5))
@@ -515,15 +492,15 @@ GO.all.4 <- cowplot::plot_grid(p.go.7,NULL,p.go.8, ncol= 3, nrow = 1, rel_widths
 GO.all.4
 
 #Save the plots all together 
-png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/GO-enrichment/GO-enrichments-clusterbased-4.png", width = 60, height = 10, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/GO-enrichment/GO-enrichments-clusterbased-4.png", width = 60, height = 10, res = 300, units = "cm") #Units are pixels by default
 print(GO.all.4)
-dev.off()
+#dev.off()
 
 #Save the plots individually
 
-png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/GO-enrichment/GO-enrichment-C0.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/GO-enrichment/GO-enrichment-C0.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
 print(p0)
-dev.off()
+#dev.off()
 
 ```
 
@@ -606,13 +583,13 @@ p.go.LPS <- ggplot(head(gostres.BP.i.l$LPS$result, 10), aes(reorder(term_name, -
 
 GO.sig.originalID <- cowplot::plot_grid(p.go.LDM.12h,NULL,p.go.PTG.12h,NULL,p.go.LPS,NULL, ncol= 6, nrow = 1, rel_widths = c(5,0.1,5, 0.1,5,0.1))
 
-png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/GO-enrichment/GO-enrichment-cell-id-sig-all.png", width = 50, height = 10, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/GO-enrichment/GO-enrichment-cell-id-sig-all.png", width = 50, height = 10, res = 300, units = "cm") #Units are pixels by default
 print(GO.sig.originalID)
-dev.off()
+#dev.off()
 
 ```
 
-There is a distinction between mature and immature DCs (Shalek A., 2013)
+There is a distinction between mature and immature DCs [Shalek A., 2013](https://pubmed.ncbi.nlm.nih.gov/23685454/) or GM-DCs and GM-Macs [Helft J., 2015](https://pubmed.ncbi.nlm.nih.gov/26084029/). Therefore we want to see whether the identified sub-populations in our UMAP correspond to these classifications by using markers that correspond to these classifications.
 
 ```{r, plot the mature and immature markers on umaps, fig.width= 12, fig.height= 6}
 
@@ -626,12 +603,13 @@ p2 <- FeaturePlot(se.dc.mus, features = c("Cd83"), cols = c("lightgray", "mistyr
 p3 <- FeaturePlot(se.dc.mus, features = c("C5ar1"), cols = c("lightgray", "lightblue", "darkblue"))
 p4 <- FeaturePlot(se.dc.mus, features = c("Il1a"), cols = c("lightgray", "lightblue", "darkblue"))
 
-png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/mature_vs_immature_umap.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/mature_vs_immature_umap.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
 print(plot_grid(p1,p2,p3,p4, ncol = 2, nrow = 2))
-dev.off()
+#dev.off()
 
 
 ```
+
 ```{r, AddModuleScore based on maturity}
 
 
@@ -642,8 +620,8 @@ se.dc.mus <- AddModuleScore(se.dc.mus, features = matdc, assay = "SCT", name = "
 
 head( se.dc.mus[[]])
 
-#ModuleScores added for each gene of each cell -> 
-#write if statement that says if 3 our of 4 are positive = mature, if 2 out of 4 = positive = intermediate, if 1 out of 4 = positive = immature! 
+# ModuleScores added for each gene of each cell -> 
+# write if statement that says if 3 our of 4 are positive = mature, if 2 out of 4 = positive = intermediate, if 1 out of 4 = positive = immature! 
 
 maturedcs1 <- sapply((se.dc.mus@meta.data$matureDC1), function(x) {
   if (x > 0)  paste0(1) else paste0(0)
@@ -666,7 +644,7 @@ maturityscores <- transform(maturityscores, sum = rowSums(maturityscores))
 
 #attach maturity as a column to the dataframe: 
 
-maturityscores<- as.data.frame(sapply((maturityscores$sum), function(x) {
+maturityscores <- as.data.frame(sapply((maturityscores$sum), function(x) {
   if(x >= 3) paste0("mature") 
   else paste0("immature")
   }))
@@ -676,10 +654,12 @@ rownames(maturityscores) <- rownames(se.dc.mus@meta.data)
 se.dc.mus <- AddMetaData(se.dc.mus, metadata = maturityscores, col.name = "maturation_state")
 
 DimPlot(se.dc.mus, group.by = "cell_class")
+DimPlot(se.dc.mus, group.by = "maturation_state")
 
 FeaturePlot(se.dc.mus, features = "Ccr7")
 
 ```
+Next we want to infer on the DEG between the maturity state/immune cell type and the original cell class of the metadata i.e. the infection state
 
 ```{r, pairwise DGEA for mature vs immature}
 
@@ -698,7 +678,14 @@ infected_maturity_m_3h <- FindMarkers(se.dc.mus,ident.1 = id3, ident.2 = id4, mi
 
 id5 <- c("LDM_12h_mature", "PTG_12h_mature")
 id6 <- c("LDM_12h_immature", "PTG_12h_immature")
+
 infected_maturity_m_12h <- FindMarkers(se.dc.mus,ident.1 = id5, ident.2 = id6, min.pct = 0.25)
+
+infected_maturity_m_12h
+
+```
+
+```{r, volcano plots for visualization of DEG}
 
 volcano.infected.3h <- EnhancedVolcano(infected_maturity_m_3h, lab = rownames(infected_maturity_m_3h),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
 
@@ -710,24 +697,26 @@ volcano.infected.3h
 volcano.infected.12h
 volcano.control
 
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/pairwise-DE-infection-control-maturation-all.png", width = 20, height = 40, units = "cm", res = 300)
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/pairwise-DE-infection-control-maturation-all.png", width = 20, height = 40, units = "cm", res = 300)
 print(cowplot::plot_grid(volcano.control, volcano.infected.3h, infected.12h, nrow = 3, ncol = 1))
-dev.off()
+#dev.off()
 
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-3h-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-3h-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
 print(volcano.infected.3h)
-dev.off()
+#dev.off()
 
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-12h-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-12h-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
 print(volcano.infected.12h)
-dev.off()
+#dev.off()
 
-png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-control-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-control-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
 print(volcano.control)
-dev.off()
+#dev.off()
+```
 
+```{r, run the DGEA with the same trhesholds as used for volcano plots}
 
-#Filter the datasets accordingto the same thresholds as in volconos: 
+#Filter the datasets according to the same thresholds as in volcano plots: 
 
 cmm <- FindMarkers(se.dc.mus,ident.1 = id1, ident.2 = id2, min.pct = 0.25, logfc.threshold = 1)
 cmm <- subset(cmm, p_val_adj < 0.01)
@@ -754,6 +743,33 @@ infection12h_maturity_specific <- setdiff(infection12h_maturity_specific, infect
 DEG_maturation_infection3h <- subset(imm3, rownames(imm3) %in% infection3h_maturity_specific)
 DEG_maturation_infection12h <- subset(imm12, rownames(imm12) %in% infection12h_maturity_specific)
 
+DEG_maturation_infection12h
+
+mat_12h_cor <- cor(t(as.matrix(se.dc.mus@assays$SCT@data[rownames(DEG_maturation_infection12h), ])))
+
+corrplot(mat_12h_cor, method="color", tl.col = "black", order = "FPC", col=colorRampPalette(c("blue4","white","red3"))(100), cl.lim = c(-1,1))
+
+
+```
+I would like to compare the differential expressed genes for LDM and PTG at 12h between mature and immature cells in more detail and display them in a nicer fashion than a volcano-plot, therefore I will subset the data to only have mature and immature PTG and LDM unfected cells at 12 hours
+
+```{r, subset object}
+
+se.12h <- SubsetData(se.dc.mus, cells = rownames(subset(se.dc.mus[[]], cell_class_maturation %in% c("PTG_12h_mature","PTG_12h_immature", "LDM_12h_mature", "LDM_12h_immature"))))
+
+se.12h <- SetIdent(se.12h, value = "cell_class_maturation")
+se.12h.m<- FindAllMarkers(se.12h, logfc.threshold = 1, min.pct = 0.25, only.pos = T)
+se.12h.m  <- subset(se.12h.m, p_val_adj < 0.01)
+
+se.12h.m  %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+
+DoHeatmap(se.12h, features = se.12h.m$gene)
+
+
+```
+
+
+```{r, attach the GO terms to the tables}
 #attach the descriptions and GO-terms to the list:
 genes.table.go <- read.table("~/Dropbox/shared_ankarklev/Franzi-analysis/annotation/go_gene_name_translation.tab")
 
@@ -779,7 +795,6 @@ write.xlsx(control_maturation, "~/Dropbox/shared_ankarklev/Franzi-analysis/pairw
 ```
 
 ```{r, pairwise DEG cluster and timepoint based}
-
 
 #Paste the cluster to the respective cell_class of each gene and add as a new column in the metadata 
 se.dc.mus$cluster_and_cell_class <- paste0(se.dc.mus$SCT_snn_res.0.8, "_", se.dc.mus$cell_class)
@@ -855,6 +870,10 @@ print(volcano.12h.PTG.cluster)
 dev.off()
 
 ```
+
+
+Integrate toxodata in the mouse data 
+
 
 ```{r, add toxoclusters to metadata and highlight them in umap}
 
