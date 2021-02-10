@@ -9,16 +9,14 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 
 ```{r, }
 
-dc.data.toxo <- read.csv("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/toxo-DC-counts.csv", row.names = 1, header = T, check.names = FALSE)
+dc.data.toxo <- read.csv("~/t.gondi_dc/data/cnt/toxo-DC-counts.csv", row.names = 1, header = T, check.names = FALSE)
 
-meta1 <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/metadata-200430.csv", sep = ",", header = T, row.names = 1)
+meta1 <- read.table("~/t.gondi_dc/data/meta/metadata-200430.csv", sep = ",", header = T, row.names = 1)
 
 genes.table.tg <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/gene_name_translation_tg.tab", sep = ",", header = T, row.names = 1)
 
-meta.toxo <- subset(meta1, meta1$cell_class %in% toxo.species)
-head(meta.toxo)
 
-se.toxo <- CreateSeuratObject(dc.data.toxo, min.cells = 3, min.features = 200, project = "DC-TG-FH-T", meta.data = meta.toxo)
+se.toxo <- CreateSeuratObject(dc.data.toxo, min.cells = 3, min.features = 200, project = "DC-TG-FH-T", meta.data = meta1)
 
 VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol = 3, group.by = "cell_class")
 
@@ -35,6 +33,7 @@ VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol 
 se.toxo <- SCTransform(se.toxo)
 
 ```
+
 ```{r, Run Dimensionality reduction and umap analysis}
 
 se.toxo <- RunPCA(se.toxo)
@@ -58,9 +57,208 @@ head(Idents(se.toxo), 5)
 se.toxo <- RunUMAP(se.toxo, dims = 1:9, min.dist = 0.1, spread = 0.5)
 
 se.toxo <- SetIdent(se.toxo, value = "cell_class")
-DimPlot(se.toxo)
+
+DimPlot(se.toxo, group.by = "seurat_clusters")
+
+#Gra15 
+FeaturePlot(se.toxo, features = "TGME49-275470")
+
+#Rop16
+FeaturePlot(se.toxo, features = "TGME49-262730")
+
+se.toxo$Gra15_expression <- ifelse(se.toxo[["SCT"]]@data["TGME49-275470", ] > 1, "Gra15+", "Gra15-")
+
+se.toxo$Rop16_expression <- ifelse(se.toxo[["SCT"]]@data["TGME49-262730", ] > 1, "Rop16+", "Rop16-")
 
 #One group of LDM toxo as well as PTG toxo seems to be clustering away from the rest of the cells with toxo : It would be interesting to take these cells and visualise these on the umap for the dc clustering as well as the combined umap for toxo and DCs! and then look if they are in a specific cluster!! 
 
 ```
 
+```{r, DEG of original cell classes}
+
+se.toxo <- SetIdent(se.toxo, value = "cell_class")
+tx.markers <- FindAllMarkers(se.toxo, logfc.threshold = 0.5, min.pct = 0.25, only.pos = T)
+tx.markers <- subset(tx.markers, p_val_adj < 0.05)
+DoHeatmap(se.toxo, features = tx.markers$gene)
+
+```
+Calculate percentages of each condition within toxo clusters 
+```{r, calculate percentages of each condition within individual clusters}
+
+#write sapply function to give vector for each cluster and condition and create a dataframe with the information 
+clusters <- c(0:3)
+
+LPS_perCluster <- sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "LPS" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+LDM_3h_perCluster <- sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "LDM_3h" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+PTG_3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "PTG_3h" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+LDM_12h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "LDM_12h" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+PTG_12h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "PTG_12h" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+ctrl_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "ctrl" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+LDM_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "LDM_Lys3h" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+PTG_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.toxo@meta.data$cell_class == "PTG_Lys3h" & se.toxo@meta.data$seurat_clusters == cluster))
+})
+
+n1 <- c("cluster0", "cluster1", "cluster2", "cluster3")
+identpercluster <- data.frame(n1, LDM_3h_perCluster, PTG_3h_perCluster, LDM_12h_perCluster, PTG_12h_perCluster, ctrl_perCluster, LDM_Lys3h_perCluster, PTG_Lys3h_perCluster, LPS_perCluster)
+colnames(identpercluster) <- c("cluster", "LDM 3h", "PTG 3h", "LDM 12h", "PTG 12h", "uninfected", "LDM Lysate", "PTG Lysate", "LPS")
+identpercluster <- gather(identpercluster, key = "identity", value = "cellcount", -cluster)
+
+#calculate percentages using an apply function 
+percent <- function(x){
+  ((x/sum(identpercluster$cellcount))*100)
+}
+
+identpercluster$percent <- identpercluster[,3]/(sum(identpercluster$cellcount))*100
+
+#Plot results:
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/originialIDpercluster_percent.png", width = 20, height = 10, unit = "cm", res = 300)
+print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
+  geom_bar(position = "stack", stat = "identity") +
+  xlab("") +
+  ylab ("relative proportion of cells") + 
+  scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
+  theme_classic() + 
+  theme(legend.title = element_blank()))
+#dev.off()
+
+```
+
+```{r, scale the calcualted percentages}
+#calculate percentages of individual clusters with normalizing to the individual cluster 
+
+c0.p <- subset(identpercluster, cluster == "cluster0")
+c1.p <- subset(identpercluster, cluster == "cluster1")
+c2.p <- subset(identpercluster, cluster == "cluster2")
+c3.p <- subset(identpercluster, cluster == "cluster3")
+
+
+cp.l <- c(c0.p$cellcount, c1.p$cellcount, c2.p$cellcount, c3.p$cellcount)
+
+
+c0.p$percent.cluster <-  c0.p$cellcount/sum(c0.p$cellcount)*100
+c1.p$percent.cluster <-  c1.p$cellcount/sum(c1.p$cellcount)*100
+c2.p$percent.cluster <-  c2.p$cellcount/sum(c2.p$cellcount)*100
+c3.p$percent.cluster <-  c3.p$cellcount/sum(c3.p$cellcount)*100
+
+
+identpercluster1 <- dplyr::bind_rows(c0.p,c1.p, c2.p,c3.p)
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/cellIDpercluster-norm.png", width = 20, height = 10, units = "cm", res = 300) 
+  print(ggplot(identpercluster1, aes(cluster, percent.cluster, fill= identity)) +
+  geom_bar(position = "stack", stat = "identity") +
+  xlab("") +
+  ylab ("cells of original condition per cluster [%]") + 
+  scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
+  theme_classic() + 
+  theme(legend.title = element_blank()))
+#  dev.off()
+
+```
+
+Calculate amount of toxo transcripts within each toxo cluster 
+
+```{r, number of toxo transcripts in each cluster}
+
+#Number of toxoplasma transcripts/cluster
+nc <- c(0:3)
+n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
+
+cluster.t.p.l <- setNames(sapply(nc, function(x){
+subset(se.toxo, subset = seurat_clusters %in% x)
+}), nm = n)
+
+cluster.t.p.l <- setNames(lapply(cluster.t.p.l, function(x){
+  sum(x@meta.data$toxo_nUMI)
+}), nm = n) 
+
+cluster.t.p.l <- as.data.frame(unlist(cluster.t.p.l))
+
+names(cluster.t.p.l)[1] <- "percentage"
+cluster.t.p.l$cluster <- as.character(0:3)
+
+print(ggplot(cluster.t.p.l, aes(cluster, percentage)) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() + 
+  ylab("nUMI T. gondii per cluster"))
+
+```
+compare to the total number of cells in each cluster and the numbers of mouse transcripts per cluster and see if you need to normalize for the total number of cells or if that already happened (double-check)! 
+
+```{r, number of toxo transcripts in each cluster}
+
+#Number of toxoplasma transcripts/cluster
+nc <- c(0:3)
+n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
+
+cluster.t.p.l <- setNames(sapply(nc, function(x){
+subset(se.toxo, subset = seurat_clusters %in% x)
+}), nm = n)
+
+cluster.t.p.l <- setNames(lapply(cluster.t.p.l, function(x){
+  sum(x@meta.data$mouse_nUMI)
+}), nm = n) 
+
+cluster.t.p.l <- as.data.frame(unlist(cluster.t.p.l))
+
+names(cluster.t.p.l)[1] <- "percentage"
+cluster.t.p.l$cluster <- as.character(0:3)
+
+print(ggplot(cluster.t.p.l, aes(cluster, percentage)) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() + 
+  ylab("nUMI m. musculus per cluster"))
+
+```
+
+
+It does not seem to be normalized for the total number of UMIs in each cluster since the % of mouse transcripts is also lower in cluster 2 and 3 (as observed for the percentage of T. gondii umis in these clusters)
+
+Check for the total number of Umis in each cluster
+
+```{r, number of toxo transcripts in each cluster}
+
+#Number of toxoplasma transcripts/cluster
+nc <- c(0:3)
+n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
+
+cluster.t.p.l <- setNames(sapply(nc, function(x){
+subset(se.toxo, subset = seurat_clusters %in% x)
+}), nm = n)
+
+cluster.t.p.l <- setNames(lapply(cluster.t.p.l, function(x){
+  sum(x@meta.data$nUMI)
+}), nm = n) 
+
+cluster.t.p.l <- as.data.frame(unlist(cluster.t.p.l))
+
+names(cluster.t.p.l)[1] <- "percentage"
+cluster.t.p.l$cluster <- as.character(0:3)
+
+print(ggplot(cluster.t.p.l, aes(cluster, percentage)) + 
+  geom_bar(stat = "identity") + 
+  theme_classic() + 
+  ylab("nUMI per cluster"))
+
+```
