@@ -58,7 +58,7 @@ se.toxo <- RunUMAP(se.toxo, dims = 1:9, min.dist = 0.1, spread = 0.5)
 
 se.toxo <- SetIdent(se.toxo, value = "cell_class")
 
-DimPlot(se.toxo, group.by = "seurat_clusters")
+DimPlot(se.toxo, group.by = "cell_class")
 
 #Gra15 
 FeaturePlot(se.toxo, features = "TGME49-275470")
@@ -206,7 +206,7 @@ print(ggplot(cluster.t.p.l, aes(cluster, percentage)) +
 ```
 compare to the total number of cells in each cluster and the numbers of mouse transcripts per cluster and see if you need to normalize for the total number of cells or if that already happened (double-check)! 
 
-```{r, number of toxo transcripts in each cluster}
+```{r, number of mouse transcripts in each cluster}
 
 #Number of toxoplasma transcripts/cluster
 nc <- c(0:3)
@@ -237,7 +237,7 @@ It does not seem to be normalized for the total number of UMIs in each cluster s
 
 Check for the total number of Umis in each cluster
 
-```{r, number of toxo transcripts in each cluster}
+```{r, total number transcripts in each cluster}
 
 #Number of toxoplasma transcripts/cluster
 nc <- c(0:3)

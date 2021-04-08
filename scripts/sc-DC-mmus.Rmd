@@ -436,12 +436,15 @@ se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
 
 markers.cellident <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold = 0.25)
 
+markers.cellident <- subset(markers.cellident, p_val_adj < 0.05)
 
 markers.cellident %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
 
-top20.all.i <- markers.cellident %>% group_by(cluster) %>% top_n(n=20, wt =avg_logFC)
+top20.all.i <- dc.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_logFC)
 top.20.all.i <- DoHeatmap(se.dc.mus, features = top20.all.i$gene)
-top.20.all.i
+png("~/Downloads/markers_cell_id.png", width = 30, height = 30, res= 300, unit = "cm")
+    print(top.20.all.i)
+dev.off()
 
 markers.control <- subset(markers.cellident, markers.cellident$cluster == "ctrl")
 markers.LDM12h <- subset(markers.cellident, markers.cellident$cluster == "LDM_12h")
@@ -595,6 +598,7 @@ se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class_maturation")
 
 id1 <- "ctrl_mature"
 id2 <- "ctrl_immature"
+
 control_maturity_m <- FindMarkers(se.dc.mus,ident.1 = id1, ident.2 = id2, min.pct = 0.25)
 
 id3 <- c("LDM_3h_mature", "PTG_3h_mature")
@@ -709,15 +713,15 @@ m12h
 
 #Only for LDM12h
 
-id3 <- c("2_LDM_12h")
-id4 <- c("5_LDM_12h")
+id3 <- c("3_LDM_12h")
+id4 <- c("4_LDM_12h")
 
 m12hLDM <- FindMarkers(object = se.dc.mus, ident.1 = id3, ident.2 = id4, logfc.threshold = 0.5, min.pct = 0.25)
 m12hLDM <- subset(m12hLDM, p_val_adj < 0.05)
 m12hLDM
 
-id5 <- c("2_PTG_12h")
-id6 <- c("5_PTG_12h")
+id5 <- c("3_PTG_12h")
+id6 <- c("4_PTG_12h")
 
 m12hPTG <- FindMarkers(object = se.dc.mus, ident.1 = id5, ident.2 = id6, logfc.threshold = 0.5, min.pct = 0.25)
 m12hPTG <- subset(m12hPTG, p_val_adj < 0.05)

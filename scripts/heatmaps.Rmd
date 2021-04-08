@@ -113,13 +113,17 @@ c.alt <- c("Arg1", "Chil3", "Mgl2", "Ccl24", "Mrc1", "Pdcd1lg2", "Ptgs1", "Igf1"
 
 ```{r generate matrix to plot heatmaps}
 
+##generate the matrix to perform the heatmaps with 
+#extract the matrix (according to your preferences - you don't have to specifiy previous clustering but you can)
 gene_data <- data.frame(t(as.matrix(se.dc.mus@assays$RNA@data)),cluster=se.dc.mus$cell_class,check.names = F)
+#average data over clusters 
 average_data <- aggregate(.~cluster, gene_data, mean)
 cluster_name <- average_data[,1]
 average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
 rownames(average_data) <- cluster_name
 average_data <- t(average_data)
 phmat1 <- t(scale(t(average_data)))
+#create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
 phmat1[phmat1> 1.5] <- 1.5
 phmat1[phmat1 < -1.5] <- -1.5
 
@@ -195,7 +199,7 @@ print(mat_12h <- pheatmap(phmat4[rownames(dc.12h.markers),], fontsize_row = 5, c
 dev.off()
 
 
-mat_12h <- pheatmap(phmat5[rownames(DEG_12h_im),], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(1000))
+mat_12h <- pheatmap(phmat5[rownames(DEG_12h_im),], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "euclidean", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(1000))
 
 
 ```
