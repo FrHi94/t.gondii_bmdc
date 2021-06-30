@@ -7,9 +7,9 @@ output: html_notebook
 
 ```{r, load the data}
 
-dc.data <- read.csv("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/cnt_normalized 3.csv", row.names = 1, header = T, check.names = FALSE)
+dc.data <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
 
-genes.table.tg.mus <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/genes_annotation_TG_MUS.tab", stringsAsFactors = FALSE)
+genes.table.tg.mus <- read.table("~/Dropbox/shared_ankarklev/Franzi-analysis/annotation/genes_annotation_TG_MUS.tab", stringsAsFactors = FALSE)
 sum(rownames(dc.data) %in% genes.table.tg.mus$ensembl_gene_id)
 dim(dc.data)
 
@@ -30,7 +30,7 @@ newnames <- genes.table.tg.mus[rownames(dc.data), ]$unique_gene_name
 
 rownames(dc.data) <- newnames
 
-meta1 <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/metadata-200430.csv", sep = ",", header = T, row.names = 1)
+meta1 <- read.table("~/t.gondi_dc/data/meta/metadata-200430.csv", sep = ",", header = T, row.names = 1)
 
 se.dc <- CreateSeuratObject(dc.data, min.cells = 3, min.features = 200, project = "DC-TG-FH-COMBINED", meta.data = meta1)
 

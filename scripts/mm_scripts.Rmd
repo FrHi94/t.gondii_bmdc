@@ -1,0 +1,248 @@
+---
+title: "dc_maturation_assay"
+author: "Mubasher Mohammed"
+date: "6/15/2020"
+output: html_document
+---
+
+
+```{r}
+dc_mus <- readRDS(file = "/Users/mohammedmubasher/Mubasher Dropbox/Mubasher Mohammed/shared_ankarklev/Franzi-analysis/seurat-objects/seurat-dc-200609")
+dc_mus_nolps <- readRDS(file = "/Users/mohammedmubasher/Mubasher Dropbox/Mubasher Mohammed/shared_ankarklev/Franzi-analysis/seurat-objects/seurat-dc-mus-nolps-200605")
+toxo <- readRDS(file = "/Users/mohammedmubasher/Mubasher Dropbox/Mubasher Mohammed/shared_ankarklev/Franzi-analysis/seurat-objects/seurat-toxo-new-annotated-2006022")
+mat <- readRDS("/Users/mohammedmubasher/Mubasher Dropbox/Mubasher Mohammed/shared_ankarklev/Franzi-analysis/seurat-objects/se.dc.mus_complete-200717")
+```
+
+```{r}
+DimPlot(dc_mus, group.by = "cell_class")
+DimPlot(dc_mus_nolps, group.by = "cell_class")
+```
+
+
+```{r}
+FeaturePlot(dc_mus, features = c("Tnf", "Il1b", "Cxcl10", "Il1a")) #this for Pathogen-dept_maturation
+FeaturePlot(dc_mus, features = c("Ccr7", "Cd83", "Ccl22", "C5")) # this for clutring maturation
+```
+
+```{r}
+FeaturePlot(dc_mus_nolps, features = c("Tnf", "Il1b", "Cxcl10", "Il1a")) #this for Pathogen-dept_maturation
+FeaturePlot(dc_mus_nolps, features = c("Ccr7", "Cd83", "Ccl22")) # this for clutring maturation
+```
+
+```{r}
+FeaturePlot(dc_mus_nolps, reduction = "umap", features = c("Il1b", "Il1a"), blend = TRUE, cols = c("blue", "red"), pt.size = 2) #2 makers for pathogen drived maturation 
+```
+
+```{r}
+FeaturePlot(dc_mus_nolps, reduction = "umap", features = c("Ccr7", "Cd83"), blend = TRUE, cols = c("blue", "red"), pt.size = 2) # 2 mrkers for cluture drived maturation
+FeaturePlot(dc_mus, features = c("Zbtb46", "Mertk")) # we should seperate Macrophages from DCs then do the pathogen based on that,,, maybe? 
+FeaturePlot(dc_mus, features = c("Zbtb46", "Cd14"))
+```
+
+```{r}
+
+DotPlot(dc_mus, features = c("Il1b"), assay = "SCT", scale = TRUE, group.by = "cell_class", dot.scale =20) 
+```
+
+```{r}
+
+custom_fill_colors = c(RColorBrewer::brewer.pal(9, "Oranges")[2], 
+                       RColorBrewer::brewer.pal(9, "Reds")[6], 
+                       RColorBrewer::brewer.pal(9, "Oranges")[3], 
+                       RColorBrewer::brewer.pal(9, "Reds")[7],
+                       RColorBrewer::brewer.pal(9, "Reds")[8],
+                       RColorBrewer::brewer.pal(9, "Oranges")[4],
+                       RColorBrewer::brewer.pal(9, "Reds")[9],
+                       RColorBrewer::brewer.pal(9, "Oranges")[5],
+                       RColorBrewer::brewer.pal(9, "Blues")[4:9])
+```
+
+```{r}
+custom_fill_colors_2 = c(RColorBrewer::brewer.pal(9, "Blues"))
+```
+
+```{r}
+pheatmap(phmat1[int, ], cluster_cols = F, breaks = myBreaks, fontsize_row = 10, cellwidth = 15, cellheight = 15, clustering_distance_rows = "correlation")
+```
+
+
+Dcs
+```{r}
+
+VlnPlot(dc_mus, features = c("Myd88", "Nfkb1", "Irf8", "Atg3", "Pdcd11", "Egr1"), group.by = "cell_class", assay = "SCT", pt.size = 2, cols = custom_fill_colors)
+
+```
+
+Toxo
+```{r}
+VlnPlot(toxo, features = c("TGME49-259020", "TGME49-293690", "TGME49-201780", "TGME49-233460"), group.by = "cell_class", assay = "SCT", pt.size = 0.5, cols = custom_fill_colors_2)
+```
+
+```{r}
+deg_pro <- FindAllMarkers(dc_mus, logfc.threshold = 0.5, only.pos = T, test.use = 'wilcox')
+deg_pro <- deg_pro[deg_pro$p_val_adj<0.05, ]
+## you need to set id to "groups"
+```
+
+```{r}
+top5 <- c()
+for(i in c("ctrl", "LDM_Lys3h","PTG_3h", "LPS", "PTG_Lys3h","PTG_12","LDM_3h","LDM_12")){
+  tmp_gene <- deg_pro$gene[deg_pro$cluster==i][1:5]
+  top5 <- c(top5, tmp_gene)
+}
+
+```
+
+```{r}
+gene_data <- data.frame(t(as.matrix(mature_set@assays$RNA@data)),cluster=mature_set$cell_class_maturation,check.names = F)
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+```
+
+```{r}
+gene_data <- data.frame(t(as.matrix(toxo@assays$RNA@data)),cluster=toxo$group,check.names = F)
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+```
+
+
+```{r}
+as.data.frame(phmat1)
+phmat1 <- as.data.frame(phmat1)
+m <- as.data.frame(m, col.names = "gene")
+names(m)[1]<- paste("gene")
+phmat1 <- subset(phmat1, gene %in% m$gene)
+phmat1 <- as.matrix(phmat1)
+```
+
+
+
+```{r}
+m <- rownames(TFs) #franzi DEG maturation genelist
+pheatmap(phmat1)
+pheatmap(phmat1 [m, ], fontsize_row = 2.5, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(100))
+```
+
+Dcs TFs
+```{r}
+DC_tf_1 <- c("Atf6", "Stat3", "Stat6", "Jak1", "Jak2", "Jak3", "Egr1", "Egr2", "Fos", "Hdac1", "Hdac2", "Mta1", "Mta2", "Mta3", "Mbd2", "Mbd3", "Rbbp7","Nfatc4", "Usp7", "Mdm2", "Trp53", "Ppp2r2a", "Rbbp4")
+DC_tf_2 <- c("Hdac1", "Hdac2", "Mta1", "Mta2", "Mta3", "Mbd2", "Mbd3", "Rbbp7", "Chd3", "Chd4", "Crebbp")
+DC_tf_3 <- c("Nfatc4", "Usp7", "Mdm2", "Trp53", "Ppp2r2a")
+#FeaturePlot(toxo, features = Toxo_tf, pt.size = 2, cols = c("grey","darkblue"))
+```
+
+Toxo virluent genes 
+```{r}
+goi_t <- c("TGME49-233460","TGME49-201780","TGME49-300100","TGME49-262730", "TGME49-288840", "TGME49-293690", "TGME49-308090", "TGME49-205250", "TGME49-275470")
+tg_type1 <- c("TGME49-308090", "TGGT1-258580", "TGME49-205250", "TGME49-208850")
+tg_type2 <- c("TGME49-205250", "TGME49-205250")
+```
+
+Toxo-virulent gens 
+```{r}
+Toxo_v <- c("ROP41","ROP35","ROP25", "ROP33", "ROP21", "ROP39", "ROP31", "ROP20", "ROP32", "ROP30", "ROP27", "ROP5", "ROP8", "RON3", "ROP7", "ROP16", "ROP18", "ROP17")
+Toxo_g <-  c("GRA7","GRA1","GRA3","ROP25", "GRA15")
+```
+
+
+migatory related genes 
+```{r}
+mig <- c("Timp1", "Cd63", "Itgb1", "Ptk2", "Ccr5", "Timp2", "Mmp2", "Mmp9") #CCR5 should be down-reg amol., et 2019
+pheatmap(phmat1 [mig, ], fontsize_row = 10, cellwidth = 10, cellheight = 10, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(100))
+```
+
+subsetting cells 
+```{r}
+Idents(mat) <- "cell_class_maturation"
+lps <- WhichCells(mat, idents = c("LPS_mature","LPS_immature")) #subset cluster 2 
+lps_ctrlset <- subset(mat, idents = c("ctrl_mature", "PTG_3h_immature", "ctrl_immature"))
+
+mature_set <- subset(mat, idents = c("ctrl_mature", "PTG_12h_mature", "PTG_3h_mature", "LDM_3h_mature", "LDM_12h_mature"))
+immature_set <- subset(mat, idents = c("LPS_immature", "ctrl_immature", "PTG_12h_immature", "PTG_3h_immature", "PTG_Lys3h_immature", "LDM_3h_immature", "LDM_12h_immature","LDM_Lys3h_immature"))
+```
+
+```{r}
+matdc <- c("Ccr7", "Ccl22", "Serpinb9", "Cd83")
+immatdc <- c("Tnf", "Il1a", "Cxcl10", "C5ar1")
+
+```
+
+
+```{r}
+int <- c("Ccr7", "Cd86", "Cd80", "Cd40")
+lps_res <- c("Ccl4", "Ccl3", "Cxcl2", "Ccrl2", "Tank", "Cflar")
+pheatmap(phmat1 [int, ], fontsize_row = 2.5, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("darkred" ,"lightblue", "#FDE725"))(100))
+```
+
+BMDC mature and immature surface markers not specific in our data??  
+```{r}
+mat_bmdc <- c("Itgax", "H2-Ab1", "Cd24a", "Ly75", "Pdcd1lg2", "Irf4") #Itgax+ and H2-Ab1-hi+ and other markers should be hi
+immat_bmdc <- c("Itgax", "H2-Ab1", "Sirpa", "Adgre1", "Itgam") #Itgax+ abd H2-Ab1-int and other markers should be hi
+```
+
+DCs and Macs specific signture 
+```{r}
+Mac_sig <- c("Hacd4", "Tmem273", "Tlr4", "Fgd4", "Sqor", "Csf3r", "Plod1", "Tom1", "Pld3", "Tpp1", "Ctsd", "Lamp2", "Pla2g4a", "Fcgr1", "Mr1", "Mertk", "Cd14", "Tbxas1", "Fcgr3", "Spp1", "Cd164", "Tcn2", "Dok3", "Ctsl", "Tspan14")
+Dc_sig <- c("Adam19", "Ccr7", "Flt3", "Gpr132", "H2-Eb2", "Hmgn3", "Kit", "Klri1", "Kmo", "P2ry10", "Nectin1", "Rab30", "Slamf7", "Traf1", "Zbtb46", "Dpp4", "Runx3")
+```
+
+LPS response in Macs Vs Dcs
+```{r}
+lps_res_2 <- c("Rel", "Gnb4", "Ccr7", "Irf8", "Ccl22", "Tmem39a", "Cd83", "Zfp36l1", "Tnfsf4", "Ccnd2", "Stat2", "Calcrl", "Pml", "Irf9", "Irf7", "Ddx58", "Ifit1", "Ifih1", "Rsad2", "Mapkapk2", "Ccl3", "Plek", "Ifit3", "Inhba", "Mt2", "Cd14", "Clec4e", "Slc7a11", "Tnf", "Ikbke", "Cxcl2", "Ptx3", "Il1a", "Il6", "Il1b", "Cxcl10", "Ets2")
+```
+
+```{r}
+goi_n <- c("Nhp2", "Dkc1", "Nop56", "Nop58", "Fbl") #snoRNA associated genes
+```
+
+```{r}
+myBreaks <- seq(-1.5, 1.5, length.out=101)
+#myBreaks <- seq(-2, 2, length.out=101)
+```
+
+
+
+seperate mature and immature cells 
+```{r}
+mature_cells <- c("ctrl_mature", "LDM_Lys3h_mature", "PTG_Lys3h_mature", "PTG_3h_mature", "LDM_3h_mature", "LDM_12h_mature", "PTG_12h_mature", "LPS_mature")
+int_mature_cells <- mat_data$well[mat_data$cell_class_maturation %in% mature_cells]
+mature_sample_sheet <- mat_data[int_mature_cells, ]
+write.csv(mature_sample_sheet, file = "~/Desktop/DC-toxo dual-SC/mature_sample_sheet.csv") ## same for immature cells 
+```
+
+prepare reads matrix
+```{r}
+mature_dc_reads <- as.matrix(ds.counts[int_mature_cells, ])
+write.csv(mature_dc_reads, file = "~/Desktop/DC-toxo dual-SC/mature_dc_reads.csv")
+> immature_dc_reads <- as.matrix(ds.counts[int_immature_cells, ]) ##same for immature
+```
+
+
+
+```{r}
+lps_response_genes <- pheatmap(phmat1[lps_res, ], cluster_cols = F, breaks = myBreaks, fontsize_row = 10, cellwidth = 60, cellheight = 20, clustering_distance_rows = "correlation")
+png(filename = "/Users/mohammedmubasher/Mubasher Dropbox/Mubasher Mohammed/shared_ankarklev/from_mubasher/lps_response_genes.png", width = 40, height= 25, unit = "cm", res= 300)
+print(lps_response_genes)
+dev.off()
+```
+
+```{r}
+immature_tfs <- pheatmap(immature[DC_tf_1, ], cluster_cols = F, cellwidth = 15, cellheight = 10, color = custom_fill_colors_2)
+png(filename = "/Users/mohammedmubasher/Mubasher Dropbox/Mubasher Mohammed/shared_ankarklev/from_mubasher/gra_genes.png", width = 40, height= 25, unit = "cm", res= 300)
+print(gra_genes)
+dev.off()
+```
+
+

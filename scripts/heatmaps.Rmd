@@ -115,7 +115,7 @@ c.alt <- c("Arg1", "Chil3", "Mgl2", "Ccl24", "Mrc1", "Pdcd1lg2", "Ptgs1", "Igf1"
 
 ##generate the matrix to perform the heatmaps with 
 #extract the matrix (according to your preferences - you don't have to specifiy previous clustering but you can)
-gene_data <- data.frame(t(as.matrix(se.dc.mus@assays$RNA@data)),cluster=se.dc.mus$cell_class,check.names = F)
+gene_data <- data.frame(t(as.matrix(se.dc.mus@assays$RNA@data)),cluster= se.dc.mus$seurat_clusters,check.names = F)
 #average data over clusters 
 average_data <- aggregate(.~cluster, gene_data, mean)
 cluster_name <- average_data[,1]
@@ -173,7 +173,7 @@ phmat5[phmat5 < -1.5] <- -1.5
 ```{r, subset matrices accordingto to the groups of interest}
 
 #subset bu columns
-phmat12 <- phmat1[,c(1:4,9:12)]
+phmat12 <- phmat1[,c("3", "4")]
 phmat3 <- phmat1[, c(5:8,13:16)]
 
 ```

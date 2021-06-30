@@ -7,7 +7,7 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 
 
 
-```{r, }
+```{r, read in data, fig.height= 12, fig.width= 10}
 
 dc.data.toxo <- read.csv("~/t.gondi_dc/data/cnt/toxo-DC-counts.csv", row.names = 1, header = T, check.names = FALSE)
 
@@ -23,7 +23,7 @@ VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol 
 se.toxo <- subset(se.toxo, subset = cell_class %in% c("LDM_3h", "LDM_12h", "PTG_3h", "PTG_12h"))
 
 
-VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol = 3, group.by = "cell_class")
+VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA","nCount_SCT", "nFeature_SCT"), ncol = 2, group.by = "cell_class")
 
 
 ```
@@ -54,11 +54,12 @@ se.toxo <- FindClusters(se.toxo) #start with default resolution of 0.8
 #inspect the clusters
 head(Idents(se.toxo), 5)
 
-se.toxo <- RunUMAP(se.toxo, dims = 1:9, min.dist = 0.1, spread = 0.5)
+se.toxo <- RunUMAP(se.toxo, dims = 1:6, min.dist = 0.1, spread = 0.5)
 
 se.toxo <- SetIdent(se.toxo, value = "cell_class")
 
 DimPlot(se.toxo, group.by = "cell_class")
+DimPlot(se.toxo, group.by = "seurat_clusters")
 
 #Gra15 
 FeaturePlot(se.toxo, features = "TGME49-275470")
@@ -72,11 +73,34 @@ se.toxo$Rop16_expression <- ifelse(se.toxo[["SCT"]]@data["TGME49-262730", ] > 1,
 
 #One group of LDM toxo as well as PTG toxo seems to be clustering away from the rest of the cells with toxo : It would be interesting to take these cells and visualise these on the umap for the dc clustering as well as the combined umap for toxo and DCs! and then look if they are in a specific cluster!! 
 
+FeaturePlot(se.toxo, features = "nFeature_SCT")
+
 ```
+
+```{r, plot UMAPs}
+
+umap.tx.clusters <- DimPlot(se.toxo, reduction = "umap", 
+                              group.by = "seurat_clusters",
+                              cols = c.cols) +
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+umap.tx.cellclass <- DimPlot(se.toxo, reduction = "umap", 
+                               group.by = "cell_class", 
+                               cols = cell.cols)  +
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+png(filename = "~/t.gondi_dc/res/tx_umap.png", width = 35, height = 15, res = 600, units = "cm") #Units are pixels by default
+print(cowplot::plot_grid(umap.tx.cellclass,umap.tx.clusters))
+dev.off()
+
+```
+
 
 ```{r, DEG of original cell classes}
 
-se.toxo <- SetIdent(se.toxo, value = "cell_class")
+se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
 tx.markers <- FindAllMarkers(se.toxo, logfc.threshold = 0.5, min.pct = 0.25, only.pos = T)
 tx.markers <- subset(tx.markers, p_val_adj < 0.05)
 DoHeatmap(se.toxo, features = tx.markers$gene)
