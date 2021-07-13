@@ -36,6 +36,7 @@ suppressMessages(require(biomaRt))
 library(EnhancedVolcano)
 library(pheatmap)
 library(STutility)
+library(RCurl)
 
 ```
 
@@ -349,7 +350,7 @@ se.dc.markers <- subset(se.dc.markers, p_val_adj < 0.05)
 dc.12h.markers.3 <- FindMarkers(se.dc.mus, ident.1 = 3, ident.2 = 4, min.pct = 0.25, logfc.threshold = 0.5)
 dc.12h.markers.4 <- FindMarkers(se.dc.mus, ident.1 = 4, ident.2 = 3, min.pct = 0.25, logfc.threshold = 0.5)
 
-dc.12h.markers.3 <- subset(dc.12h.markers.3, p_val_adj < 0.05 & avg_log2FC > 1.5)
+dc.12h.markers.3 <- subset(dc.12h.markers.3, p_val_adj < 0.05 & avg_log2FC > 2)
 dc.12h.markers.4 <- subset(dc.12h.markers.4, p_val_adj < 0.05 & avg_log2FC > 1.5)
 #visualize in a volcano plot
 volcano12h.3.4 <- EnhancedVolcano(dc.12h.markers , lab = rownames(dc.12h.markers),x= "avg_log2FC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
@@ -403,9 +404,11 @@ se.dc.mus <- SetIdent(se.dc.mus, value = "celltype")
 gmDC.cells <- as.vector(colnames(subset(se.dc.mus, celltype == "GM-DC")))
 gmMAC.cells <- as.vector(colnames(subset(se.dc.mus, celltype == "GM-Mac")))
 
-gmDC.cnt <- dc.data.mus[, gmDC.cells]
-gmMAC.cnt <- dc.data.mus[, gmMAC.cells]
+gmDC.cnt <- se.dc.mus@assays$RNA@data[, gmDC.cells]
 
+gmMAC.cnt <- se.dc.mus@assays$RNA@data[, gmMAC.cells]
+
+#subset metadata
 
 metaDC <- subset(meta1, rownames(meta1) %in% gmDC.cells)
 metaMac <- subset(meta1, rownames(meta1) %in% gmMAC.cells)
@@ -448,7 +451,8 @@ DimPlot(se.dc, reduction = "umap",group.by = "seurat_clusters")
 
 DimPlot(se.dc, reduction = "umap", group.by = "cell_class")
 
-saveRDS(se.dc, "~/t.gondi_dc/res/seurat-objects/dc-only")
+
+
 
 ```
 
@@ -483,16 +487,192 @@ DimPlot(se.mac, reduction = "umap",group.by = "seurat_clusters")
 
 DimPlot(se.mac, reduction = "umap", group.by = "cell_class")
 
-saveRDS(se.mac, "~/t.gondi_dc/res/seurat-objects/mac-only")
+saveRDS(se.dc, "~/t.gondi_dc/res/seurat-objects/dc-only.RDS")
 
 ```
 
-```{r, dcreate a phylogenetic tree of the conidtions based on the expression matrix, width = 20, height =10}
+
+We also would like to run a cell cycle scoring analysis of the individual cell types to see whether Toxoplasma infected cells (particularly at the 12h time-point are at a specific changes in the cell cycle based on infection)
+
+We got cell cycle associated gene lists based on he orthology analysis of Tirosh, I. et al ;  https://www-ncbi-nlm-nih-gov.ezp.sub.su.se/pmc/articles/PMC4944528/
+
+```{r, cell cycle scoring - prepare data}
+
+cc_file <- getURL("https://raw.githubusercontent.com/hbc/tinyatlas/master/cell_cycle/Mus_musculus.csv") 
+cell_cycle_genes <- read.csv(text = cc_file)
+
+# Acquire the S phase genes
+s_ids <- cell_cycle_genes %>%
+        dplyr::filter(phase == "S") %>%
+        pull("geneID")
+        
+# Acquire the G2M phase genes        
+g2m_ids <- cell_cycle_genes %>%
+        dplyr::filter(phase == "G2/M") %>%
+        pull("geneID")
+
+
+an <- genes.table[cell_cycle_genes$geneID,]
+
+an <- data.frame(geneID = genes.table$ensembl_gene_id, gene_name = genes.table$external_gene_name)
+
+cell_cycle_markers <- dplyr::left_join(cell_cycle_genes, an, by = "geneID")
+
+s_genes <- cell_cycle_markers %>%
+        dplyr::filter(phase == "S") %>%
+        pull("gene_name")
+        
+# Acquire the G2M phase genes        
+g2m_genes <- cell_cycle_markers %>%
+        dplyr::filter(phase == "G2/M") %>%
+        pull("gene_name")
+
+
+```
+
+```{r, cell cycle scoring - run scoring}
+
+se.dc <- CellCycleScoring(se.dc, g2m.features = g2m_genes, s.features = s_genes)
+se.mac <- CellCycleScoring(se.mac, g2m.features = g2m_genes, s.features = s_genes)
+
+
+DimPlot(se.dc, reduction = "pca", group.by = "Phase")
+DimPlot(se.dc, reduction = "umap", group.by = "Phase")
+
+DimPlot(se.mac, reduction = "pca", group.by = "Phase")
+DimPlot(se.mac, reduction = "umap", group.by = "Phase")
+
+se.dc.mus <- CellCycleScoring(se.dc.mus, g2m.features = g2m_genes, s.features = s_genes)
+DimPlot(se.dc.mus, reduction = "pca", group.by = "Phase")
+DimPlot(se.dc.mus, reduction = "umap", group.by = "Phase")
+
+```
+This observation here is quite interesting : The cell cycle does not seem like we have to regress it out as in the PCA we can see a trend that G1 and S-Phase are most responsible for a relatively high degree of variation, as we are interested in this difference especially in light of the fact that S-phase annotated genes are mostly cells with a 12h infection we don't want to regress this co-variate but rather investigate it further. 
+
+
+```{r, create a phylogenetic tree of the conidtions based on the expression matrix, width = 20, height =10}
 
 clust.tree <- BuildClusterTree(se.dc.mus, assay = "SCT", slot = "data")
 clust.tree <- Tool(clust.tree, slot = "BuildClusterTree")
 ggtree(clust.tree, layout = "roundrect") + 
   geom_tiplab() 
+
+```
+
+
+Based on doi:10.1111/j.1462-5822.2008.01117.x , T. gondii (RH) infection promotes entry into the S phase
+
+```{r, visualization of cell cycle regulators across clusters, fig.width= 60, fig.height= 10}
+library(ggridges)
+
+DotPlot(se.dc.mus, dot.scale = 25, cols = c("#440154", "#FDE725"),features =  c("Ccna1", "Ccnb1","Ccnd1", "Ccnd2", "Ccnd3", "Ccne1", "Ccne2","Cdk2", "Cdk1", "Cdk4", "Cdk6"))
+
+# Create a data.frame with one column for continuous values, e.g. gene expression
+# and one column with a group variable, e.g. clusters
+
+cyclins <- c("Ccna1", "Ccnb1","Ccnd1", "Ccnd2", "Ccnd3", "Ccne1", "Ccne2")
+cdks <- c("Cdk2", "Cdk1", "Cdk4", "Cdk6")
+
+
+#cyclin B
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccnb1",])
+# x should be the continuous variable and y the categorical group variable
+# You can color the ridges using any variable you want
+cycp1 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin B")
+
+#cyclin D1
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccnd1",])
+cycp2 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin D1")
+
+#cyclin D2
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccnd2",])
+cycp3 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin D2")
+
+#cyclin D3
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccnd3",])
+cycp4 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin D3")
+
+#cyclin E1
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccne1",])
+cycp5 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin E1")
+
+#cyclin E2
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccne2",])
+cycp6 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin E2")
+
+cowplot::plot_grid(cycp1, cycp2, cycp3, cycp4, cycp5, cycp6, cols = 6)
+
+
+
+cdks <- c("Cdk2", "Cdk1", "Cdk4", "Cdk6")
+#cdk1
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk1",])
+cdk1 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk1")
+
+#cdk2
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk2",])
+cdk2 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk2")
+
+#cdk4
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk4",])
+cdk3 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk4")
+
+#cdk6
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk6",])
+cdk6 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk6")
+
+cowplot::plot_grid(cdk1, cdk2, cdk3, cdk6,cols = 4)
+
 
 ```
 
@@ -690,20 +870,24 @@ print(GO.sig.originalID)
 ```
 
 
-```{r, Clusterprofiler analysis}
+```{r, Clusterprofiler analysis for cluster 4}
+
 library(clusterProfiler)
+library(org.Mm.eg.db)
 
-
-original.gene.list <- dc.markers.C6$avg_log2FC
-names(original.gene.list) <- dc.markers.C3$gene
-gene_list<-na.omit(original_gene_list)
+markers_4 <- FindMarkers(se.dc.mus, ident.1 = 4, ident.2 = 3, logfc.threshold = 2)
+markers_4 <- subset(markers_4, p_val_adj < 0.05)
+original.gene.list <- markers_4$avg_log2FC
+markers_4$gene <- rownames(markers_4)
+names(original.gene.list) <- markers_4$gene
+gene_list<-na.omit(original.gene.list)
 gene_list = sort(gene_list, decreasing = TRUE)
 head(gene_list)
 
-gse <- gseGO(geneList=gene_list, 
-             ont ="ALL", 
-             keyType = "SYMBOL", 
-             nPerm = 10000, 
+gse4_BP <- gseGO(geneList=gene_list, 
+             ont ="BP", 
+             nPerm = 1000,
+             keyType = "SYMBOL",
              minGSSize = 3, 
              maxGSSize = 800, 
              pvalueCutoff = 0.05, 
@@ -711,15 +895,81 @@ gse <- gseGO(geneList=gene_list,
              OrgDb = org.Mm.eg.db, 
              pAdjustMethod = "none")
 
-head(gse@result)
+head(gse4@result)
+
+
+#select the most up/downregulated pathways /pathways of interest
+
+ridgeplot(gse4, showCategory = 30,  core_enrichment = T) + 
+  ggplot2::labs(x = "enrichment distribution") +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+dotplot(gse4, showCategory=10, split=".sign") + 
+  ggplot2::facet_grid(.~.sign) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+cnetplot(gse4, categorySize="pvalue",foldChange = gene_list)
+
+p <- heatplot(gse4_BP, showCategory = 20, foldChange = gene_list) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+p
 
 ```
 
-Organize the 
 
+```{r, Clusterprofiler analysis for cluster 6}
+
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+markers_6 <- FindMarkers(se.dc.mus, ident.1 = 6, logfc.threshold = 2)
+markers_6 <- subset(markers_6, p_val_adj < 0.05)
+original.gene.list <- markers_6$avg_log2FC
+markers_6$gene <- rownames(markers_6)
+names(original.gene.list) <- markers_6$gene
+gene_list<-na.omit(original.gene.list)
+gene_list = sort(gene_list, decreasing = TRUE)
+head(gene_list)
+
+gse6 <- gseGO(geneList=gene_list, 
+             ont ="BP", 
+             keyType = "SYMBOL",
+             exponent = 1, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = org.Mm.eg.db, 
+             pAdjustMethod = "BH", 
+             by = "fgsea")
+
+head(gse6@result)
+
+
+#select the most up/downregulated pathways /pathways of interest
+
+ridgeplot(gse6, showCategory = 30,  core_enrichment = T) + 
+  ggplot2::labs(x = "enrichment distribution") +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#FDE725", "#21908C" ,"#660156" ))(200))
+
+dotplot(gse6, showCategory=10, split=".sign") + 
+  ggplot2::facet_grid(.~.sign) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#660156" ,"#21908C", "#FDE725"))(200))
+
+cnetplot(gse6, categorySize="pvalue",foldChange = gene_list)
+
+heatplot(gse6, showCategory = 20, foldChange = gene_list) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#660156" ,"#21908C", "#FDE725"))(200))
+
+
+
+```
 
 
 Visualize GO-terms using GO-plot
+
+First rewrite one of the functions to visualize the gene names in the GO-term analysis
 
 ```{r, new function to display genes on the x-axis of the heatmap}
 
@@ -777,6 +1027,7 @@ GOHeat_fix <- function (data, nlfc, fill.col)
 
 ```
 
+Next format the data received from the gprofiler analysis
 ```{r, GO visualization}
 
 library(GOplot)
@@ -814,7 +1065,7 @@ go.data = na.omit(go.data)
 head(go.data)
 go.data$Category <- paste("BP")
 
-gene.list <- data.frame(ID = dc.markers.C3$gene, logFC = dc.markers.C3$avg_log2FC)
+gene.list <- data.frame(ID = markers$gene, logFC = markers$avg_log2FC)
 
 gene.list <- gene.list[order(-gene.list$logFC),]
 
@@ -833,6 +1084,51 @@ GOHeat(chord, nlfc = 0, fill.col = c('red', 'yellow', 'green'))
 GOCircle(circ)
 
 ```
+
+```{r,}
+
+#get the DEG betwe
+go.p.c <- go.table[go.table$external_gene_name %in% (rownames(dc.markers.C3)),]
+head(go.p.c)
+
+gse@result$core_enrichment <- gsub("/", ",", gse@result$core_enrichment)
+
+go.rich <- data.frame(ID = gse@result$ID, adj_pval = gse@result$p.adjust, Term = gse@result$Description, Genes = gse@result$core_enrichment, Category = gse@result$ONTOLOGY)
+
+#go.rich <- go.rich[1:5,]
+
+#take go.table for genes of interest, in this case DEG between cluster 3 and 4
+
+dc.markers.C3 <- dc.markers.C3[order(-dc.markers.C3$avg_log2FC),]
+
+#subset the 10 most enriched and most downregulated genes
+select <- markers[c(1:10, 104:113),]
+gene.list <- data.frame(ID = dc.markers.C3$gene, logFC = dc.markers.C3$avg_log2FC)
+
+
+gene.list <- gene.list[order(-gene.list$logFC),]
+
+#subset the 10 genes with the highest and lowest logFC
+
+circ <- circle_dat(go.rich, gene.list)
+circ <- circ[order(-circ$logFC),]
+circ <- circ[c(1:20, 721:740),]
+EC.genes <- data.frame((circ$genes), circ$logFC) %>% unique()
+process <- go.rich$Term
+
+EC <- setNames(list(EC.genes, process), nm = c("genes", "process"))
+chord <- chord_dat(circ, genes = EC$genes, process = EC$process)
+
+GOHeat_fix(chord, nlfc = 0, fill.col = c("#440154" ,"#21908C", "#FDE725"))
+GOHeat(chord, nlfc = 0, fill.col = c('red', 'yellow', 'green'))
+
+GOCircle(circ, zsc.col = c('yellow', 'black', 'cyan'))
+
+```
+
+
+As we also used cluster profiler which seems to give us a slightly more detailed analysis we will also reformat this data accordingly to visualize GO-terms of interest
+
 
 
 I can include multiple tests to this analysis - such as reactome etc., add them as additional category to the plot and simply attach it to the bottom. 
@@ -916,17 +1212,19 @@ se.dc.mus$cluster_and_cell_class <- paste0(se.dc.mus$seurat_clusters, "_", se.dc
 se.dc.mus$cell_class_type<- paste0(se.dc.mus$cell_class, "_", se.dc.mus$celltype)
 se.dc.mus$cluster_type <- paste0(se.dc.mus$SCT_snn_res.0.8, "_", se.dc.mus$celltype)
 
-se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class_type")
+se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
 
 id1 <- c("ctrl_GM-DC", "LDM_Lys3h_GM-DC", "PTG_Lys3h_GM-DC")
 id2 <- c("ctrl_GM-Mac", "LDM_Lys3h_GM-Mac", "PTG_Lys3h_GM-Mac")
 
 control_celltype <- FindMarkers(se.dc.mus,ident.1 = id1, ident.2 = id2, min.pct = 0.25)
 
-id3 <- c("LDM_3h_GM-DC", "PTG_3h_GM-DC")
-id4 <- c("LDM_3h_GM-Mac", "PTG_3h_GM-Mac")
+id3 <- c("3_GM-DC", "4_GM-DC")
+id4 <- c("3_GM-Mac", "4_GM-Mac")
 
-infected_m_3h <- FindMarkers(se.dc.mus,ident.1 = id3, ident.2 = id4, min.pct = 0.25)
+markers <- FindMarkers(se.dc.mus,ident.1 = 3, ident.2 = 4, min.pct = 0.25)
+
+markers <- subset(markers, p_val_adj < 0.05)
 
 unique_inf <- setdiff(rownames(infected_m_3h), rownames(control_celltype))
 
@@ -1149,6 +1447,20 @@ dev.off()
   
 ```
 
+```{r, add toxo cell cycle as metadata to the mouse data}
+
+toxo_phase <- as.data.frame(paste0(se.toxo$Phase))
+rownames(toxo_phase) <- rownames(se.toxo[[]])
+names(toxo_phase)[1] <- "toxo_phase"
+head(toxo_phase)
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = toxo_phase, col.name = "toxo_phase")
+
+DimPlot(se.dc.mus, group.by = "toxo_phase")
+```
+
+
+
 ```{r, DEG toxoclusters in DC data}
 #Set identity to Toxoclusters 
 
@@ -1310,7 +1622,7 @@ pheatmap(phmat12[rownames(dc.12h.markers.3),], fontsize_row = 8, cellwidth = 15,
 dc.markers.12h.join <- bind_rows(dc.12h.markers.3, dc.12h.markers.4)
 
 png("~/t.gondi_dc/res/heatmap_12h_DGEA.png", width = 25, height = 25 , unit = "cm", res = 300)
-pheatmap(phmat1[rownames(dc.markers.12h.join),], fontsize_row = 8, cellheight = 8, cellwidth = 40, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+pheatmap(phmat1[rownames(dc.12h.markers.3),c(4,5)], fontsize_row = 8, cellheight = 8, cellwidth = 40, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
 dev.off()
 
 ```
