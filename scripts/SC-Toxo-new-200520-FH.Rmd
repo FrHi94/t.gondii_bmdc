@@ -56,9 +56,9 @@ head(Idents(se.toxo), 5)
 
 se.toxo <- RunUMAP(se.toxo, dims = 1:6, min.dist = 0.1, spread = 0.5)
 
-se.toxo <- SetIdent(se.toxo, value = "cell_class")
+se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
 
-DimPlot(se.toxo, group.by = "cell_class")
+DimPlot(se.toxo, group.by = "cell_class", cols = c("darkgreen", "darkolivegreen2", "darkblue", "cornflowerblue"))
 DimPlot(se.toxo, group.by = "seurat_clusters")
 
 #Gra15 
@@ -87,12 +87,18 @@ umap.tx.clusters <- DimPlot(se.toxo, reduction = "umap",
                               axis.title = element_blank())
 umap.tx.cellclass <- DimPlot(se.toxo, reduction = "umap", 
                                group.by = "cell_class", 
-                               cols = cell.cols)  +
+                               cols = c("forestgreen", "olivedrab3", "blue3","dodgerblue3"))  +
                               theme(axis.ticks = element_blank(),
                               axis.text = element_blank(), 
                               axis.title = element_blank())
-png(filename = "~/t.gondi_dc/res/tx_umap.png", width = 35, height = 15, res = 600, units = "cm") #Units are pixels by default
-print(cowplot::plot_grid(umap.tx.cellclass,umap.tx.clusters))
+
+umap.tx.cellcycle <- DimPlot(se.toxo, group.by = "Phase",cols = c("darkolivegreen", "royalblue4", "darkorange3")) +  
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+
+png(filename = "~/t.gondi_dc/res/tx_umap.png", width = 50, height = 15, res = 600, units = "cm") #Units are pixels by default
+print(cowplot::plot_grid(umap.tx.cellclass,umap.tx.clusters, umap.tx.cellcycle, ncol = 3))
 dev.off()
 
 ```
@@ -103,7 +109,11 @@ dev.off()
 se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
 tx.markers <- FindAllMarkers(se.toxo, logfc.threshold = 0.5, min.pct = 0.25, only.pos = T)
 tx.markers <- subset(tx.markers, p_val_adj < 0.05)
-DoHeatmap(se.toxo, features = tx.markers$gene)
+top20.all.i <- tx.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_log2FC)
+
+png("~/t.gondi_dc/res/figures/fig5/tx_heatmap.png", width = 40, height = 30, res = 600, units = "cm")
+DoHeatmap(se.toxo, features = top20.all.i$gene, group.colors = c.cols)
+dev.off()
 
 ```
 Calculate percentages of each condition within toxo clusters 
@@ -307,9 +317,55 @@ se.toxo <- CellCycleScoring(se.toxo, g2m.features = s_m.phase, s.features = s.ph
 se.toxo$Phase <- gsub("G2M", "S/M", se.toxo$Phase)
 
 
-DimPlot(se.toxo, reduction = "pca", group.by = "Phase")
-DimPlot(se.toxo, group.by = "Phase")
+DimPlot(se.toxo, reduction = "pca", group.by = "Phase" )
+DimPlot(se.toxo, group.by = "Phase",cols = c("darkolivegreen", "royalblue4", "darkorange3")) +  
+      theme(axis.ticks = element_blank(),
+      axis.text = element_blank(), 
+      axis.title = element_blank())
+                          
 
 
 ```
 
+```{r, attach cell types to the toxo data}
+mus_celltypes <- as.data.frame(se.dc.mus$celltype)
+rownames(mus_celltypes) <- rownames(se.dc.mus[[]])
+names(mus_celltypes)[1] <- "mus_celltypes"
+head(mus_celltypes)
+
+se.toxo <- AddMetaData(se.toxo, metadata = mus_celltypes, col.name = "mus_celltypes")
+se.toxo$mus_celltypes <- na.omit(se.toxo$mus_celltypes)
+se.toxo.cell <- subset( x = se.toxo, subset = ( mus_celltypes == "GM-DC" | mus_celltypes == "GM-Mac"))
+DimPlot(se.toxo.cell, group.by = "mus_celltypes")
+
+#explore what NAs are : most likely they are those cells which have no mus.musculus transcripts but only T.gondii -> check in the combined dataset
+
+```
+
+```{r, investigate DEG between toxo in GM-DCs vs GM-Macs, fig.width= 40, fig.height= 20}
+
+se.toxo.cell <- SetIdent(se.toxo.cell, value = "mus_celltypes")
+
+toxo.markers.celltype <- FindAllMarkers(se.toxo.cell, only.pos = T)
+head(toxo.markers.celltype)
+toxo.markers.celltype <- subset(toxo.markers.celltype, p_val_adj < 0.05)
+toxo.markers.celltype <- toxo.markers.celltype[order(-toxo.markers.celltype$avg_log2FC),]
+#string-split rownames with .1 behind
+mutate(toxo.markers.celltype, gene = sapply(strsplit(rownames(toxo.markers.celltype), split ='.', fixed=TRUE),function(x) (x[1])))
+  
+toxo.markers.DC <- subset(toxo.markers.celltype, cluster == "GM-DC")
+toxo.markers.MAC <- subset(toxo.markers.celltype, cluster == "GM-Mac")
+nrow(toxo.markers.MAC)
+nrow(toxo.markers.DC)
+
+FeaturePlot(se.toxo, features = rownames(toxo.markers.MAC))
+
+png("~/t.gondi_dc/res/figures/fig5/tx_macs-enriched.png", width = 30, height= 20, res = 600, units = "cm")
+VlnPlot(se.toxo.cell, features = rownames(toxo.markers.MAC)[c(1,14,14,38)], group.by = "mus_celltypes",  ncol = 2, cols = c("turquoise4", "mediumorchid4"))
+dev.off()
+
+png("~/t.gondi_dc/res/figures/fig5/tx_dc-enriched.png", width = 30, height= 10, res = 600, units = "cm")
+VlnPlot(se.toxo.cell, features = toxo.markers.DC$gene , group.by = "mus_celltypes", ncol = 2, cols = c("turquoise4", "mediumorchid4"))
+dev.off()
+
+```
