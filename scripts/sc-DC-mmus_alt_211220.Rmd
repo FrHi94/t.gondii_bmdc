@@ -1,0 +1,2251 @@
+---
+title: "DC-analysis-new"
+output: html_notebook
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+PTG (ME49)  = type II (considered to be avirulent) with high expression/levels of IL-12
+LDM (RH/GT1) = type I (considered virulent) 
+
+```{r, load required packages, warning=FALSE}
+
+library(Seurat)
+library(dplyr)
+library(Matrix)
+library(gtable)
+library(grid)
+library(gridExtra)
+library(rlang)
+library(org.Mm.eg.db)
+library(AnnotationDbi)
+library(ggplot2)
+library(biomaRt)
+library(tidyr)
+library(plotly)
+library(pheatmap)
+library(forcats)
+library(patchwork)
+library(sctransform)
+library(openxlsx)
+suppressMessages(require(biomaRt))
+library(EnhancedVolcano)
+library(pheatmap)
+library(RCurl)
+library(DESeq2)
+library(WGCNA)
+
+```
+
+```{r, import data from BAM-analysis}
+
+cnt_131 <- read.table("~/t.gondi_dc/data/cnt/feat_count/count131.csv.gz", header = T,sep = "\t", row.names = 1)
+head(cnt_131)
+cnt_132 <- read.table("~/t.gondi_dc/data/cnt/feat_count/count132.csv.gz", header = T,sep = "\t", row.names = 1)
+
+meta <- read.table("~/t.gondi_dc/data/meta/properanno.csv", header = T, sep = ",", row.names = 1)
+head(meta)
+
+meta2 <- read.table("~/t.gondi_dc/data/meta/latest_mapping.csv", header = T, sep = ",")
+
+meta_131 <- meta2[grep(pattern = "131_", meta$cellname),]
+meta_132 <- meta2[grep(pattern = "132_", meta$cellname),]
+
+```
+
+```{r, format cnt_marix}
+
+#plate1
+cnt_131 <- cnt_131[,6:389]
+head(cnt_131)
+
+names <- sapply(colnames(cnt_131),
+               function(x) {strsplit(x,'_')[[1]][1]})
+colnames(cnt_131) <- names
+colnames(cnt_131) <- gsub("X", "", colnames(cnt_131))
+colnames(cnt_131) <- gsub("131.", "", colnames(cnt_131))
+colnames(cnt_131) <- paste0("131", sep = "_", colnames(cnt_131))
+head(cnt_131)
+
+#plate2
+cnt_132 <- cnt_132[,6:389]
+head(cnt_132)
+
+names <- sapply(colnames(cnt_132),
+               function(x) {strsplit(x,'_')[[1]][1]})
+colnames(cnt_132) <- names
+colnames(cnt_132) <- gsub("X", "", colnames(cnt_132))
+colnames(cnt_132) <- gsub("132.", "", colnames(cnt_132))
+colnames(cnt_132) <- paste0("132", sep = "_", colnames(cnt_132))
+head(cnt_132)
+
+dc.data <- cbind(cnt_131, cnt_132)
+
+
+```
+
+
+
+Import the count matrix of the single cell sequencing experiment and subset it, so it only contains the counts for the mouse genome
+
+```{r,subset mouse data}
+
+#subset for only mouse genes: 
+mus.genes <- rownames(dc.data)[grep("ENSMUSG",rownames(dc.data))]
+
+head(mus.genes)
+dc.data.mus <- dc.data[mus.genes,]
+
+```
+
+```{r, get count for toxo genes}
+
+toxo.genes <- rownames(dc.data)[grep("TGME49",rownames(dc.data))]
+dc.data.toxo <- dc.data[toxo.genes,]
+
+dc.data.toxo[1:5,1:5]
+nUMI_toxo <-  as.data.frame(colSums(dc.data.toxo))
+
+
+```
+
+Convert ensembl-Ids to gene symbols in the matrix
+
+```{r make gene symbol annotation file}
+#Create a vector from the column names 
+gn <- as.vector(rownames(dc.data.mus))
+gn <- sapply(gn, function(x) {strsplit(x,'\\.')[[1]][1]} )
+gn <- as.vector(unlist(gn))
+rownames(dc.data.mus) <- gn
+
+#Create an annotation file 
+
+#mouse
+mus_ensembl <- AnnotationDbi::mapIds(org.Mm.eg.db::org.Mm.eg.db,
+                                      keys=gn,
+                                      column="SYMBOL",
+                                      keytype="ENSEMBL",
+                                      multiVals="first")
+
+#plasmodium
+
+
+
+#Select only the annotations that are not NA 
+keep <- (!(is.na(mus_ensembl)))
+genes <- mus_ensembl[keep]
+
+#get the names only
+extract <- names(mus_ensembl)[keep] 
+##remove duplicates
+#For ensIds
+extract <- as.vector(extract[!(duplicated(extract))])
+#For gene symbols
+genes <- as.vector(genes[!(duplicated(extract))])
+
+#for the expression matrix
+nmat <- dc.data.mus[extract,]
+
+#give new column names with gene symbols
+rownames(nmat) <- make.unique(genes)
+
+nmat[1:5,1:5]
+
+```
+
+
+```{r, compare old and new data}
+
+data_old <- nmat
+data_old[1:5,1:5]
+data_new <- nmat
+data_new[1:5,1:5]
+
+#get cells that are in the new data frame and not in the old one
+diff_cells <- setdiff(colnames(data_new), colnames(data_old))
+
+#193 cells were filtered 
+
+##Look at the cells in the seurat object 
+
+
+
+```
+
+
+Create the seurat object for analysis - set 2 markers for "mature" and "immature" cell types of BDMCs to get an impression of the proportions of these two types for each condition in the data-set. However I would like to use the mature/immature classification we have calculated - find a way to use this instead if comparing numbers 
+
+```{r, Create Seuratobject, width = 10, height = 40}
+
+meta_new <- read.table("~/t.gondi_dc/meta_141221.csv",sep = ";", header = T, row.names = 1)
+
+se.dc.mus <- CreateSeuratObject(nmat, min.cells = 3, min.features = 1000, project = "DC-TG-FH-M", meta.data = meta_new)
+
+se.dc.mus[["percent.mt"]] <- PercentageFeatureSet(se.dc.mus,pattern = "mt")
+
+
+grayscale = c("gray5","gray15", "gray30", "gray55", "gray70", "gray85", "gray95", "gray100")
+
+VlnPlot(se.dc.mus, features = c("nCount_RNA","nFeature_RNA", "percent.mt", "nUMI_toxo"), ncol = 2, group.by = "cell_class", cols = grayscale)
+
+#png("~/t.gondi_dc/res/figures/fig1/vln_toxo_all_Amol.png", width = 48, height = 16, units = "cm", res = 600)
+VlnPlot(se.toxo, features = c("TGME49-259020","TGME49-293690", "TGME49-201780", "TGME49-233460", "TGME49-255260", "TGME49-247020"), group.by = "cell_class", cols = c("gold4", "gold3", "gold2", "gold") , ncol = 3)
+#dev.off()
+
+VlnPlot(se.dc.mus, features = c("Tbp", "Ipo8", "Actb", "Gapdh", "Rplp0", "Nono", "Eef2", "B2m") , group.by = "cell_class", cols = c("midnightblue", "blue4", "blue3", "blue2", "blue1", "blue","dodgerblue3", "dodgerblue2"), ncol = 2)
+
+
+#png("~/t.gondi_dc/res/figures/fig1/vln_all_Amol.png", width = 64, height = 20, units = "cm", res = 600)
+VlnPlot(se.dc.mus, features = c("Tbp", "Ipo8", "Actb", "Gapdh", "Rplp0", "Nono", "Eef2", "B2m"), group.by = "cell_class", cols = c("midnightblue", "blue4", "blue3", "blue2", "blue1", "blue","dodgerblue3", "dodgerblue2"), ncol = 4)
+#dev.off()
+
+
+
+
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/qc/RNA-andFeatureCount-DC.png", width = 35, height = 15, res = 300, units = "cm") #Units are pixels by default
+print(VlnPlot(se.dc.mus, features = c("nCount_RNA", "nFeature_RNA"), ncol = 2, group.by = "cell_class", cols = grayscale))
+#dev.off()
+
+```
+
+```{r, add metadatacolumn to compare with the old data}
+
+se.dc.mus$qc_thr <- ifelse(colnames(se.dc.mus) %in% diff_cells, paste("failed"), paste("passed"))
+
+```
+
+
+```{r, filter low quality cells}
+#subset the cells with a high percentage of mitochondrial genes 
+se.dc.mus <- subset(se.dc.mus, subset = percent.mt < 1)
+se.dc.mus <- subset(se.dc.mus, subset = nCount_RNA > 100000)
+se.dc.mus <- se.dc.mus[-grep(pattern = "mt-", x = rownames(se.dc.mus)), ]
+
+
+#Number of UMIs per sample
+se.dc.mus@meta.data %>% 
+  	ggplot(aes(color=qc_thr, x=nCount_RNA, fill= qc_thr)) + 
+  	geom_density(alpha = 0.2) + 
+  	scale_x_log10() + 
+  	theme_classic() +
+  	ylab("Cell density") +
+  	geom_vline(xintercept = 1000)
+
+#Number of cell counts per sample 
+se.dc.mus@meta.data %>% 
+  	ggplot(aes(x=qc_thr, fill=qc_thr)) + 
+  	geom_bar() +
+  	theme_classic() +
+  	theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  	theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  	ggtitle("NCells")
+
+# Visualize the distribution of genes detected per cell via histogram
+se.dc.mus@meta.data %>% 
+  	ggplot(aes(color=qc_thr, x=nFeature_RNA, fill= qc_thr)) + 
+  	geom_density(alpha = 0.2) + 
+  	theme_classic() +
+  	scale_x_log10() + 
+  	geom_vline(xintercept = 300)
+
+# Visualize the distribution of genes detected per cell via boxplot
+se.dc.mus@meta.data %>% 
+  	ggplot(aes(x=qc_thr, y=log10(nFeature_RNA), fill=qc_thr)) + 
+  	geom_boxplot() + 
+  	theme_classic() +
+  	theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  	theme(plot.title = element_text(hjust=0.5, face="bold")) +
+  	ggtitle("NCells vs NGenes")
+
+# Visualize the correlation between genes detected and number of UMIs and determine whether strong presence of cells with low numbers of genes/UMIs
+se.dc.mus@meta.data %>% 
+  	ggplot(aes(x=nCount_RNA, y=nFeature_RNA, color=percent.mt)) + 
+  	geom_point() + 
+	scale_colour_gradient(low = "gray90", high = "black") +
+  	stat_smooth(method=lm) +
+  	scale_x_log10() + 
+  	scale_y_log10() + 
+  	theme_classic() +
+  	geom_vline(xintercept = 500) +
+  	geom_hline(yintercept = 250) +
+  	facet_wrap(~qc_thr)
+
+```
+
+
+```{r, boxplot for number of toxo-transcripts / condition}
+
+df <- data.frame(features = se.dc.mus$toxo_nUMI_p, condition = se.dc.mus$cell_class)
+ggplot(df, aes(x= condition, y = features*100)) + 
+  geom_boxplot()
+
+VlnPlot(se.dc.mus, features = "toxo_nUMI", group.by = "seurat_clusters", cols = c.cols )
+
+```
+
+```{r, normalize the data, results="hide"}
+
+#Regress out the plate origin
+se.dc.mus <- SCTransform(se.dc.mus, vars.to.regress = c("nCount_RNA", "orig.ident"))
+
+```
+
+```{r, Run dimensionality reduction and clustering}
+
+se.dc.mus <- RunPCA(se.dc.mus)
+
+
+print(se.dc.mus[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(se.dc.mus, dims = 1:2, reduction = "pca")
+
+DimPlot(se.dc.mus,  reduction = "pca", group.by = "cell_class", cols = "Dark2")
+FeaturePlot(se.dc.mus, reduction = "pca", features = "percent.mt")
+DimHeatmap(se.dc.mus, dims = 1:20, cells = 500, balanced = TRUE)
+
+ElbowPlot(se.dc.mus, ndims= 20, reduction ="pca")
+
+se.dc.mus <- FindNeighbors(se.dc.mus, dims = 1:16)
+se.dc.mus <- FindClusters(se.dc.mus) #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.dc.mus), 5)
+
+se.dc.mus <- RunUMAP(se.dc.mus, dims = 1:16, reduction = "pca")
+#min.dist let's me play around with the thightnes of the cells within the clusters
+#the spread let's me play around with the coordinates of the distance between the clusters 
+##default settings are -> min.dist: 0.3, spread: 1
+
+DimPlot(se.dc.mus, reduction = "umap",group.by = "seurat_clusters")
+
+DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class")
+DimPlot(se.dc.mus, reduction = "umap", group.by = "qc_thr")
+
+FeaturePlot(se.dc.mus, features = "percent.mt")
+FeaturePlot(se.dc.mus, features = "nCount_RNA")
+FeaturePlot(se.dc.mus, features = "nCount_RNA")
+
+#saveRDS(se.dc.mus, "~/t.gondi_dc/res/seurat-objects/seurat-dc-2021-06-23")
+```
+
+```{r, compare ICA and PCA dim-reduction}
+
+se.dc.mus <- RunICA(se.dc.mus)
+se.dc.mus <- FindNeighbors(se.dc.mus, dims = 1:15, reduction = "pca", graph.name =  "snn_nmf")
+se.dc.mus <- FindClusters(se.dc.mus, graph.name = "snn_nmf") #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.dc.mus), 5)
+
+se.dc.mus <- RunUMAP(se.dc.mus, dims = 1:10, spread = 0.5, min.dist = 0.1)
+DimPlot(se.dc.mus, group.by = "cell_class")
+DimPlot(se.dc.mus, group.by = "seurat_clusters")
+library(mclust)
+
+mclust::adjustedRandIndex(se.dc.mus$snn_nmf_res.0.8, se.dc.mus$cell_class)
+
+table(se.dc.mus@meta.data[, c("SCT_snn_res.0.8", "cell_class")])
+
+
+```
+
+
+Plot the Umap and visualize the clusters as well as the original cell identity
+
+```{r, umap coordinates and plots}
+
+c.cols <- c("deeppink3", "darkcyan", "darkgoldenrod3", "chartreuse4","darkorange", "brown3", "deepskyblue3", "blueviolet", "firebrick")
+cell.cols <- c("forestgreen", "blue3","dodgerblue3", "olivedrab3","red4", "magenta4", "deeppink3","seagreen3")
+umap.dc.m.clusters <- DimPlot(se.dc.mus, reduction = "umap", 
+                              group.by = "seurat_clusters",
+                              cols = c.cols) +
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+umap.dc.m.cellclass <- DimPlot(se.dc.mus, reduction = "umap", 
+                               group.by = "cell_class", 
+                               cols = cell.cols)  +
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+
+#extract the umap coordinates for possible cross-references
+umap.coordinates.dc <- as.data.frame(Embeddings(se.dc.mus, reduction = "umap"))
+
+
+png(filename = "~/t.gondi_dc/res/dc_umap_clusters.png", width = 35, height = 15, res = 600, units = "cm") #Units are pixels by default
+print(cowplot::plot_grid(umap.dc.m.cellclass,umap.dc.m.clusters))
+dev.off()
+
+
+png(filename = "~/t.gondi_dc/res/figures/fig2/cell_types_map.png", width = 17.5, height = 15, res = 600, units = "cm") #Units are pixels by default
+print(DimPlot(se.dc.mus,reduction = "umap", 
+                               group.by = "celltype", 
+                               cols = c("turquoise4", "mediumorchid4"))  +
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank()))
+dev.off()
+
+
+```
+
+
+```{r, calculate percentages of each condition within individual clusters}
+
+# sapply function to give vector for each cluster and condition and create a dataframe with the information 
+clusters <- c(0:9)
+
+LPS_perCluster <- sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LPS" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+LDM_3h_perCluster <- sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LDM_3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+PTG_3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "PTG_3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+LDM_12h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LDM_12h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+PTG_12h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "PTG_12h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+ctrl_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "ctrl" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+LDM_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "LDM_Lys3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+PTG_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
+  length(which(se.dc.mus@meta.data$cell_class == "PTG_Lys3h" & se.dc.mus@meta.data$seurat_clusters == cluster))
+})
+
+n1 <- c("cluster0", "cluster1", "cluster2", "cluster3", "cluster4", "cluster5", "cluster6", "cluster7", "cluster8", "cluster_9")
+identpercluster <- data.frame(n1, LDM_3h_perCluster, PTG_3h_perCluster, LDM_12h_perCluster, PTG_12h_perCluster, ctrl_perCluster, LDM_Lys3h_perCluster, PTG_Lys3h_perCluster, LPS_perCluster)
+colnames(identpercluster) <- c("cluster", "LDM 3h", "PTG 3h", "LDM 12h", "PTG 12h", "uninfected", "LDM Lysate", "PTG Lysate", "LPS")
+identpercluster <- gather(identpercluster, key = "identity", value = "cellcount", -cluster)
+
+#calculate percentages using an apply function 
+percent <- function(x){
+  ((x/sum(identpercluster$cellcount))*100)
+}
+
+identpercluster$percent <- identpercluster[,3]/(sum(identpercluster$cellcount))*100
+
+#Plot results:
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/originialIDpercluster_percent.png", width = 20, height = 10, unit = "cm", res = 300)
+print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
+  geom_bar(position = "stack", stat = "identity") +
+  xlab("") +
+  ylab ("relative proportion of cells") + 
+  scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
+  theme_classic() + 
+  theme(legend.title = element_blank()))
+#dev.off()
+
+```
+
+
+```{r, scale the calcualted percentages}
+#calculate percentages of individual clusters with normalizing to the individual cluster 
+
+c0.p <- subset(identpercluster, cluster == "cluster0")
+c1.p <- subset(identpercluster, cluster == "cluster1")
+c2.p <- subset(identpercluster, cluster == "cluster2")
+c3.p <- subset(identpercluster, cluster == "cluster3")
+c4.p <- subset(identpercluster, cluster == "cluster4")
+c5.p <- subset(identpercluster, cluster == "cluster5")
+c6.p <- subset(identpercluster, cluster == "cluster6")
+c7.p <- subset(identpercluster, cluster == "cluster7")
+c8.p <- subset(identpercluster, cluster == "cluster8")
+
+cp.l <- c(c0.p$cellcount, c1.p$cellcount, c2.p$cellcount, c3.p$cellcount,c4.p$cellcount, c5.p$cellcount, c6.p$cellcount, c7.p$cellcount , c8.p$cellcount)
+
+
+c0.p$percent.cluster <-  c0.p$cellcount/sum(c0.p$cellcount)*100
+c1.p$percent.cluster <-  c1.p$cellcount/sum(c1.p$cellcount)*100
+c2.p$percent.cluster <-  c2.p$cellcount/sum(c2.p$cellcount)*100
+c3.p$percent.cluster <-  c3.p$cellcount/sum(c3.p$cellcount)*100
+c4.p$percent.cluster <-  c4.p$cellcount/sum(c4.p$cellcount)*100
+c5.p$percent.cluster <-  c5.p$cellcount/sum(c5.p$cellcount)*100
+c6.p$percent.cluster <-  c6.p$cellcount/sum(c6.p$cellcount)*100
+c7.p$percent.cluster <-  c7.p$cellcount/sum(c7.p$cellcount)*100
+c8.p$percent.cluster <-  c8.p$cellcount/sum(c8.p$cellcount)*100
+
+identpercluster1 <- dplyr::bind_rows(c0.p,c1.p, c2.p,c3.p, c4.p, c5.p, c6.p, c7.p, c8.p)
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/cellIDpercluster-norm.png", width = 20, height = 10, units = "cm", res = 300) 
+  print(ggplot(identpercluster1, aes(cluster, percent.cluster, fill= identity)) +
+  geom_bar(position = "stack", stat = "identity") +
+  xlab("") +
+  ylab ("cells of original condition per cluster [%]") + 
+  scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
+  theme_classic() + 
+  theme(legend.title = element_blank()))
+#  dev.off()
+
+```
+
+Next we perform a variety of differential gene expression analysis based on multiple factors and conditions
+
+1. Find markers based on the original cell class in the metadata, i.e. based on the experimental condition
+
+```{r, Find markers for original identities}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
+
+dc.markers.original <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold = 0.5)
+
+dc.markers.original <- subset(dc.markers.original, p_val_adj < 0.05)
+
+#write.xlsx(dc.markers.original, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-orginal-IDs.xlsx")
+
+
+```
+
+2. Find markers for the identified clusters in the cluster analysis 
+
+```{r, Find Markers according to cluster identity and subset them for later gprofiler analysis}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
+
+#Find markers for all clusters
+se.dc.markers <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold = 0.5, only.pos = T)
+
+#subset them for only significantly differential expressed genes 
+se.dc.markers <- subset(se.dc.markers, p_val_adj < 0.05)
+
+#look at differential expressed genes between the two clusters that comprise most of the 12h time-point (independent of strain, cluster 3 and cluster 5)
+dc.12h.markers.3 <- FindMarkers(se.dc.mus, ident.1 = 3, ident.2 = 4, min.pct = 0.25, logfc.threshold = 0.5, only.pos = T)
+dc.12h.markers.4 <- FindMarkers(se.dc.mus, ident.1 = 4, ident.2 = 3, min.pct = 0.25, logfc.threshold = 0.5, only.pos = T)
+
+dc.12h.markers.3 <- subset(dc.12h.markers.3, p_val_adj < 0.05 & avg_log2FC > 2)
+dc.12h.markers.4 <- subset(dc.12h.markers.4, p_val_adj < 0.05 & avg_log2FC > 2)
+#visualize in a volcano plot
+volcano12h.3.4 <- EnhancedVolcano(dc.12h.markers , lab = rownames(dc.12h.markers),x= "avg_log2FC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcano-12hDEG-leftPTG-rightLDM.png", width = 15, height = 25, units = "cm", res= 300)
+print(volcano12h.3.4)
+#dev.off()
+
+#write.xlsx(dc.12h.markers,"~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/DEG-cluster3-cluster5.xlsx", row.names = T)
+
+```
+
+
+```{r, run marker expression and cell type annotation using scCATCH}
+
+library(scCATCH)
+
+clu_markers <- findmarkergenes(se.dc.mus,
+                               species = "Mouse",
+                               cluster = "All",
+                               match_CellMatch = TRUE,
+                               cancer = NULL,
+                               tissue = c("Blood", "Bone marrow"),
+                               cell_min_pct = 0.25,
+                               logfc = 0.25,
+                               pvalue = 0.05)
+
+clu_ann <- scCATCH(clu_markers, 
+                   species = "Mouse",
+                   tissue = c("Blood", "Bone marrow"))
+
+  
+```   
+
+```{r, heatmap of DEG from scCATCH analysis}
+
+top20 <- clu_markers$clu_markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_logfc)
+top.20 <- DoHeatmap(se.dc.mus, features = top20$gene)
+
+top.20
+
+```
+
+
+Run cluster analysis seperatly on GM-DCs and GM-Macs 
+
+```{r, separate raw data files for DCs and Macrophages and cluster them}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "celltype")
+
+gmDC.cells <- as.vector(colnames(subset(se.dc.mus, celltype == "GM-DC")))
+gmMAC.cells <- as.vector(colnames(subset(se.dc.mus, celltype == "GM-Mac")))
+
+gmDC.cnt <- se.dc.mus@assays$RNA@data[, gmDC.cells]
+
+gmMAC.cnt <- se.dc.mus@assays$RNA@data[, gmMAC.cells]
+
+#subset metadata
+
+metaDC <- subset(meta1, rownames(meta1) %in% gmDC.cells)
+metaMac <- subset(meta1, rownames(meta1) %in% gmMAC.cells)
+  
+se.dc <- CreateSeuratObject(gmDC.cnt, min.cells = 3, min.features = 200, project = "DC-TG-FH-M", meta.data = metaDC)
+se.mac <- CreateSeuratObject(gmMAC.cnt, min.cells = 3, min.features = 200, project = "DC-TG-FH-M", meta.data = metaMac)
+
+
+```
+
+Now run the analysis for DCs only 
+
+```{r, DC analysis}
+
+se.dc <- SCTransform(se.dc)
+
+se.dc <- RunPCA(se.dc)
+
+print(se.dc[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(se.dc, dims = 1:2, reduction = "pca")
+
+DimPlot(se.dc,  reduction = "pca", group.by = "cell_class", cols = "Dark2")
+
+DimHeatmap(se.dc, dims = 1:15, cells = 500, balanced = TRUE)
+
+ElbowPlot(se.dc, ndims= 20, reduction ="pca")
+
+se.dc <- FindNeighbors(se.dc, dims = 1:6)
+se.dc <- FindClusters(se.dc) #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.dc), 5)
+
+se.dc <- RunUMAP(se.dc, dims = 1:10, spread = 0.5, min.dist = 0.1)
+#min.dist let's me play around with the thightnes of the cells within the clusters
+#the spread let's me play around with the coordinates of the distance between the clusters 
+##default settings are -> min.dist: 0.3, spread: 1
+
+DimPlot(se.dc, reduction = "umap",group.by = "seurat_clusters")
+
+DimPlot(se.dc, reduction = "umap", group.by = "cell_class")
+
+
+
+
+```
+
+```{r, Mac analysis}
+
+se.mac <- SCTransform(se.mac)
+
+se.mac <- RunPCA(se.mac)
+
+
+print(se.mac[["pca"]], dims = 1:5, nfeatures = 5)
+
+VizDimLoadings(se.mac, dims = 1:2, reduction = "pca")
+
+DimPlot(se.mac,  reduction = "pca", group.by = "cell_class", cols = "Dark2")
+
+DimHeatmap(se.mac, dims = 1:15, cells = 500, balanced = TRUE)
+
+ElbowPlot(se.mac, ndims= 20, reduction ="pca")
+
+se.mac <- FindNeighbors(se.mac, dims = 1:15)
+se.mac <- FindClusters(se.mac) #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.mac), 5)
+
+se.mac <- RunUMAP(se.mac, dims = 1:10, spread = 0.5, min.dist = 0.1)
+#min.dist let's me play around with the thightnes of the cells within the clusters
+#the spread let's me play around with the coordinates of the distance between the clusters 
+##default settings are -> min.dist: 0.3, spread: 1
+
+DimPlot(se.mac, reduction = "umap",group.by = "seurat_clusters")
+
+DimPlot(se.mac, reduction = "umap", group.by = "cell_class")
+
+saveRDS(se.dc, "~/t.gondi_dc/res/seurat-objects/dc-only.RDS")
+
+```
+
+
+We also would like to run a cell cycle scoring analysis of the individual cell types to see whether Toxoplasma infected cells (particularly at the 12h time-point are at a specific changes in the cell cycle based on infection)
+
+We got cell cycle associated gene lists based on he orthology analysis of Tirosh, I. et al ;  https://www-ncbi-nlm-nih-gov.ezp.sub.su.se/pmc/articles/PMC4944528/
+
+```{r, cell cycle scoring - prepare data}
+
+cc_file <- getURL("https://raw.githubusercontent.com/hbc/tinyatlas/master/cell_cycle/Mus_musculus.csv") 
+cell_cycle_genes <- read.csv(text = cc_file)
+
+# Acquire the S phase genes
+s_ids <- cell_cycle_genes %>%
+        dplyr::filter(phase == "S") %>%
+        pull("geneID")
+        
+# Acquire the G2M phase genes        
+g2m_ids <- cell_cycle_genes %>%
+        dplyr::filter(phase == "G2/M") %>%
+        pull("geneID")
+
+
+an <- genes.table[cell_cycle_genes$geneID,]
+
+an <- data.frame(geneID = genes.table$ensembl_gene_id, gene_name = genes.table$external_gene_name)
+
+cell_cycle_markers <- dplyr::left_join(cell_cycle_genes, an, by = "geneID")
+
+s_genes <- cell_cycle_markers %>%
+        dplyr::filter(phase == "S") %>%
+        pull("gene_name")
+        
+# Acquire the G2M phase genes        
+g2m_genes <- cell_cycle_markers %>%
+        dplyr::filter(phase == "G2/M") %>%
+        pull("gene_name")
+
+
+```
+
+```{r, cell cycle scoring - run scoring}
+
+se.dc <- CellCycleScoring(se.dc, g2m.features = g2m_genes, s.features = s_genes)
+se.mac <- CellCycleScoring(se.mac, g2m.features = g2m_genes, s.features = s_genes)
+
+
+DimPlot(se.dc, reduction = "pca", group.by = "Phase")
+DimPlot(se.dc, reduction = "umap", group.by = "Phase")
+
+DimPlot(se.mac, reduction = "pca", group.by = "Phase")
+DimPlot(se.mac, reduction = "umap", group.by = "Phase")
+
+se.dc.mus <- CellCycleScoring(se.dc.mus, g2m.features = g2m_genes, s.features = s_genes)
+DimPlot(se.dc.mus, reduction = "pca", group.by = "Phase")
+
+png("~/t.gondi_dc/res/figures/fig2/cell_cycle_scoring.png",width = 17.5, height = 15, res = 600, units = "cm")
+DimPlot(se.dc.mus, reduction = "umap", group.by = "Phase", cols = c("darkolivegreen", "darkorange3", "royalblue4")) +
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+dev.off()
+
+```
+This observation here is quite interesting : The cell cycle does not seem like we have to regress it out as in the PCA we can see a trend that G1 and S-Phase are most responsible for a relatively high degree of variation, as we are interested in this difference especially in light of the fact that S-phase annotated genes are mostly cells with a 12h infection we don't want to regress this co-variate but rather investigate it further. 
+
+
+```{r, create a phylogenetic tree of the conidtions based on the expression matrix, width = 20, height =10}
+
+clust.tree <- BuildClusterTree(se.dc.mus, assay = "SCT", slot = "data")
+clust.tree <- Tool(clust.tree, slot = "BuildClusterTree")
+ggtree(clust.tree, layout = "roundrect") + 
+  geom_tiplab() 
+
+```
+
+
+Based on doi:10.1111/j.1462-5822.2008.01117.x , T. gondii (RH) infection promotes entry into the S phase
+
+```{r, visualization of cell cycle regulators across clusters, fig.width= 60, fig.height= 10}
+
+library(ggridges)
+
+DotPlot(se.dc.mus, dot.scale = 25, cols = c("#440154", "#FDE725"),features =  c("Ccna1", "Ccnb1","Ccnd1", "Ccnd2", "Ccnd3", "Ccne1", "Ccne2","Cdk2", "Cdk1", "Cdk4", "Cdk6"))
+
+# Create a data.frame with one column for continuous values, e.g. gene expression
+# and one column with a group variable, e.g. clusters
+
+cyclins <- c("Ccna1", "Ccnb1","Ccnd1", "Ccnd2", "Ccnd3", "Ccne1", "Ccne2")
+cdks <- c("Cdk2", "Cdk1", "Cdk4", "Cdk6")
+cdkInh <- c("Cdkn1a","Cdkn2c", "Cdkn1b","Cdkn1c","Cdkn2a","Cdkn2b")
+cdkreg <- c("Cdc25a", "Cks1b","Cks2", "Gadd45a")
+#cyclin B
+gg <- data.frame(cluster = se.dc$seurat_clusters, val = se.dc@assays$SCT@data["Ccnb1",])
+# x should be the continuous variable and y the categorical group variable
+# You can color the ridges using any variable you want
+cycp1 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin B")
+
+#cyclin D1
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccnd1",])
+cycp2 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin D1")
+
+#cyclin D2
+gg <- data.frame(cluster = se.dc$cell_class, val = se.dc@assays$SCT@data["Ccnd2",])
+cycp3 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin D2")
+
+#cyclin D3
+gg <- data.frame(cluster = se.dc$timepoint, val = se.dc@assays$SCT@data["Ccnd3",])
+cycp4 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin D3")
+
+#cyclin E1
+gg <- data.frame(cluster = se.dc$, val = se.dc@assays$SCT@data["Ccne1",])
+cycp5 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin E1")
+
+#cyclin E2
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Ccne2",])
+cycp6 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("cyclin E2")
+
+
+png("~/t.gondi_dc/res/figures/fig2/cyclin_1_to_3_density.png", res = 600, width = 50, height = 10, units = "cm")
+cowplot::plot_grid(cycp1, cycp2, cycp3, cols = 3)
+dev.off()
+
+png("~/t.gondi_dc/res/figures/fig2/cyclin_4_to_6_density.png", res = 600, width = 50, height = 10, units = "cm")
+cowplot::plot_grid(cycp4, cycp5, cycp6, cols = 3)
+dev.off()
+
+cdks <- c("Cdk2", "Cdk1", "Cdk4", "Cdk6")
+#cdk1
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk1",])
+cdk1 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk1")
+
+#cdk2
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk2",])
+cdk2 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk2")
+
+#cdk4
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk4",])
+cdk3 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk4")
+
+#cdk6
+gg <- data.frame(cluster = se.dc.mus$seurat_clusters, val = se.dc.mus@assays$SCT@data["Cdk6",])
+cdk6 <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
+  geom_density_ridges(alpha = 0.8) +# Set transparency
+  scale_fill_manual(values = c.cols) +
+  theme_ridges() +
+  labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
+  ggtitle("Cdk6")
+
+
+png("~/t.gondi_dc/res/figures/fig2/cdk_density.png", res = 600, width = 50, height = 10, units = "cm")
+cowplot::plot_grid(cdk1, cdk2, cdk3, cdk6,cols = 4)
+dev.off()
+
+```
+
+
+```{r, run GO term GO term analyis based on clusters}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
+
+dc.markers <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold = 0.5)
+
+dc.markers <- subset(dc.markers, p_val_adj < 0.05)
+
+dc.markers.C0 <- subset(dc.markers, dc.markers$cluster == 0)
+dc.markers.C1 <- subset(dc.markers, dc.markers$cluster == 1)
+dc.markers.C2 <- subset(dc.markers, dc.markers$cluster == 2)
+dc.markers.C3 <- subset(dc.markers, dc.markers$cluster == 3)
+dc.markers.C4 <- subset(dc.markers, dc.markers$cluster == 4)
+dc.markers.C5 <- subset(dc.markers, dc.markers$cluster == 5)
+dc.markers.C6 <- subset(dc.markers, dc.markers$cluster == 6)
+dc.markers.C7 <- subset(dc.markers, dc.markers$cluster == 7)
+dc.markers.C8 <- subset(dc.markers, dc.markers$cluster == 8)
+
+
+marker.list <- list(dc.markers.C0, dc.markers.C1, dc.markers.C2, dc.markers.C3, dc.markers.C4, dc.markers.C5, dc.markers.C6, dc.markers.C7, dc.markers.C8)
+
+dc.markers.n <- c("dc.markers.C0","dc.markers.C1", "dc.markers.C2", "dc.markers.C3","dc.markers.C4", "dc.markers.C5", "dc.markers.C6", "dc.markers.C7", "dc.markers.C8")
+
+subset.markers.l <- setNames(lapply(marker.list, function(x) {
+  subset(x, avg_log2FC > 0.5 & p_val_adj < 0.01)
+}), nm = dc.markers.n)
+
+```
+
+```{r, run heatmap}
+
+top20.all.i <- dc.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_log2FC)
+top.20.all.i <- DoHeatmap(se.dc.mus, features = top20.all.i$gene)
+png("~/Downloads/markers_cluster.png", width = 50, height = 40, res= 300, unit = "cm")
+    print(top.20.all.i)
+dev.off()
+```
+
+
+```{r, run GO term analysis with different databases}
+
+library(gprofiler2)
+
+gostres.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x[,7], organism = "mmusculus")
+}), nm = c("gostres.C0", "gostres.C1", "gostres.C2", "gostres.C3", "gostres.C4", "gostres.C5", "gostres.C6","gostres.C7","gostres.C8"))
+
+#subset for GO:BP only
+gostres.BP.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x[,7], organism = "mmusculus", sources = "GO:BP")
+}), nm = c("gostres.BP.C0", "gostres.BP.C1", "gostres.BP.C2", "gostres.BP.C3", "gostres.BP.C4", "gostres.BP.C5", "gostres.BP.C6", "gostres.BP.C7", "gostres.BP.C8"))
+
+#subset for Kegg only
+
+gostres.KEGG.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x[,7], organism = "mmusculus", sources = "KEGG")
+}), nm = c("gostres.KEGG.C0", "gostres.KEGG.C1", "gostres.KEGG.C2", "gostres.KEGG.C3", "gostres.KEGG.C4", "gostres.KEGG.C5", "gostres.KEGG.C6", "gostres.KEGG.C7"))
+
+#subset for reactome only
+
+gostres.REAC.l <- setNames(lapply(subset.markers.l, function(x){
+  gost(query = x[,7], organism = "mmusculus", sources = "REAC")
+}), nm = c("gostres.BP.C0", "gostres.BP.C1", "gostres.BP.C2", "gostres.BP.C3", "gostres.BP.C4", "gostres.BP.C5", "gostres.BP.C6", "gostres.BP.C7", "gostres.BP.C8"))
+
+
+#make a list 
+cUmapcluster <- c("deeppink3", "darkcyan", "darkgoldenrod3", "chartreuse4","darkorange", "brown2", "deepskyblue3", "blueviolet", "firebrick")
+#Plot the data
+
+png("~/Desktop/Reac-C8.png", width = 30, height = 15, units = "cm", res = 300)
+print(ggplot(head(gostres.REAC.l$gostres.BP.C8$result, 10), aes(reorder(term_name, -log10(p_value)), -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black", fill = "darkblue") +
+  coord_flip() +
+  #scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 20, name = "Reds")) + 
+  scale_y_continuous() +
+  xlab("Biological Process")+
+  ylab("Enrichment Score") +
+  theme(axis.text.y = element_text(size = 12), axis.title = element_blank(), panel.background = element_blank()))
+dev.off()
+
+
+GO.all.1 <- cowplot::plot_grid(p.go.0,NULL,p.go.4,NULL,p.go.6, ncol= 5, nrow = 1, rel_widths = c(5,0.1,5,0.1,5))
+GO.all.1
+
+GO.all.2 <- cowplot::plot_grid(p.go.1,NULL,p.go.2, ncol= 3, nrow = 1, rel_widths = c(5,0.1,5))
+GO.all.2
+GO.all.3 <- cowplot::plot_grid(p.go.3,NULL,p.go.5, ncol= 3, nrow = 1, rel_widths = c(5,0.1,5))
+GO.all.3
+GO.all.4 <- cowplot::plot_grid(p.go.7,NULL,p.go.8, ncol= 3, nrow = 1, rel_widths = c(5,0.1,5))
+GO.all.4
+
+#Save the plots all together 
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/GO-enrichment/GO-enrichments-clusterbased-4.png", width = 60, height = 10, res = 300, units = "cm") #Units are pixels by default
+print(GO.all.4)
+#dev.off()
+
+#Save the plots individually
+
+#png(filename = "~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/Results-200507-FiguresAndTables/GO-enrichment/GO-enrichment-C0.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
+print(p0)
+#dev.off()
+
+```
+
+In addition: Try to run the DGEA according to the original cell-identity and look at the results and the GO-term analysis in the DCs! 
+
+```{r, DEGs according to original cell identity, heatmap, GOterms}
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "cell_class")
+
+markers.cellident <- FindAllMarkers(se.dc.mus, min.pct = 0.25, logfc.threshold = 0.25)
+
+markers.cellident <- subset(markers.cellident, p_val_adj < 0.05)
+
+markers.cellident %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+
+top20.all.i <- dc.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_logFC)
+top.20.all.i <- DoHeatmap(se.dc.mus, features = top20.all.i$gene)
+#png("~/Downloads/markers_cell_id.png", width = 30, height = 30, res= 300, unit = "cm")
+    print(top.20.all.i)
+#dev.off()
+
+markers.control <- subset(markers.cellident, markers.cellident$cluster == "ctrl")
+markers.LDM12h <- subset(markers.cellident, markers.cellident$cluster == "LDM_12h")
+markers.LDM_3h <- subset(markers.cellident, markers.cellident$cluster == "LDM_3h")
+markers.LDM_Lys3h <- subset(markers.cellident, markers.cellident$cluster == "LDM_Lys3h")
+marker.LPS <- subset(markers.cellident, markers.cellident$cluster == "LPS")
+markers.PTG_12h <- subset(markers.cellident, markers.cellident$cluster == "PTG_12h")
+markers.PTG_3h <- subset(markers.cellident, markers.cellident$cluster == "PTG_3h")
+markers.PTG_Lys3h <- subset(markers.cellident, markers.cellident$cluster == "PTG_Lys3h")
+
+
+marker.list.cellident <- list(markers.control, markers.LDM12h,markers.LDM_3h, markers.LDM_Lys3h, markers.PTG_12h,markers.PTG_3h, markers.PTG_Lys3h, marker.LPS)
+dc.markers.i.n <- c("ctrl", "LDM_12h","LDM_3h","LDM_Lys3h","PTG_12h","PTG_3h","PTG_Lys3h", "LPS")
+
+subset.i.l <- setNames(lapply(marker.list.cellident, function(x) {
+  subset(x, p_val_adj < 0.05)
+}), nm = dc.markers.i.n)
+
+
+###GO terms 
+
+gostres.i.l <- setNames(lapply(subset.i.l, function(x){
+  gost(query = x$gene, organism = "mmusculus")
+}), nm = dc.markers.i.n)
+
+#subset for GO:BP only
+gostres.BP.i.l <- setNames(lapply(subset.i.l, function(x){
+  gost(query = x$gene, organism = "mmusculus", sources = "GO:BP")
+}), nm = dc.markers.i.n)
+
+#subset for Kegg only
+
+gostres.KEGG.i.l <- setNames(lapply(subset.i.l, function(x){
+  gost(query = x$gene, organism = "mmusculus", sources = "KEGG")
+}), nm = dc.markers.i.n)
+
+
+#Plot the data
+c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")
+##For BP we only get significant data for 12h timepoints!
+
+p.go.LDM.12h <- ggplot(head(gostres.BP.i.l$LDM_12h$result, 10), aes(reorder(term_name, -log10(p_value)), -log10(p_value), fill = -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black", fill = "#D95F02") +
+  coord_flip() +
+  #scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 9, name = "Reds")) + 
+  xlab("Biological Process")+
+  ylab("Enrichment Score")
+
+p.go.PTG.12h <- ggplot(head(gostres.BP.i.l$PTG_12h$result, 10), aes(reorder(term_name, -log10(p_value)), -log10(p_value), fill = -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black", fill = "#E6AB02") +
+  coord_flip() +
+  #scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 9, name = "Reds")) + 
+  xlab("Biological Process")+
+  ylab("Enrichment Score")
+
+p.go.LPS <- ggplot(head(gostres.BP.i.l$LPS$result, 10), aes(reorder(term_name, -log10(p_value)), -log10(p_value), fill = -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black", fill = "#66A61E") +
+  coord_flip() +
+  #scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 9, name = "Reds")) + 
+  xlab("Biological Process")+
+  ylab("Enrichment Score")
+
+
+GO.sig.originalID <- cowplot::plot_grid(p.go.LDM.12h,NULL,p.go.PTG.12h,NULL,p.go.LPS,NULL, ncol= 6, nrow = 1, rel_widths = c(5,0.1,5, 0.1,5,0.1))
+
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/GO-enrichment/GO-enrichment-cell-id-sig-all.png", width = 50, height = 10, res = 300, units = "cm") #Units are pixels by default
+print(GO.sig.originalID)
+#dev.off()
+
+```
+
+
+```{r, Clusterprofiler analysis for cluster 4}
+
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+markers_4 <- FindMarkers(se.dc.mus, ident.1 = 3)
+markers_4 <- subset(markers_4, p_val_adj < 0.05)
+original.gene.list <- markers_4$avg_log2FC
+markers_4$gene <- rownames(markers_4)
+names(original.gene.list) <- markers_4$gene
+gene_list<-na.omit(original.gene.list)
+gene_list = sort(gene_list, decreasing = TRUE)
+head(gene_list)
+
+gse4 <- gseGO(geneList=gene_list, 
+             ont ="BP", 
+             nPerm = 1000,
+             keyType = "SYMBOL",
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             verbose = TRUE, 
+             OrgDb = org.Mm.eg.db, 
+             pAdjustMethod = "BH")
+
+head(gse4@result)
+
+
+#select the most up/downregulated pathways /pathways of interest
+
+ridgeplot(gse4, showCategory = 50,  core_enrichment = T) + 
+  ggplot2::labs(x = "enrichment distribution") +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+#png("~/t.gondi_dc/res/figures/fig3/gse_genes_infected12h_enrichment.png", width = 30, height = 25, res = 600, units = "cm")
+dotplot(gse4, showCategory=10, split=".sign") + 
+  ggplot2::facet_grid(.~.sign) +
+  ggplot2::scale_color_gradientn(colors = colorRampPalette(c("#FDE725", "#21908C","#440154" ))(200))
+#dev.off()
+
+
+barplot(edo, showCategory=30) + 
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+  
+
+cnetplot(gse4, categorySize="pvalue",foldChange = gene_list)
+
+p <- heatplot(gse4, showCategory = 20, foldChange = gene_list) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+
+#png("~/t.gondi_dc/res/figures/fig3/gse_genes_12h.png", width = 25, height = 12, units = "cm", res = 600)
+print(p)
+#dev.off()
+
+
+```
+
+
+```{r, Clusterprofiler analysis for cluster 6}
+
+library(clusterProfiler)
+library(org.Mm.eg.db)
+
+markers_6 <- FindMarkers(se.dc.mus, ident.1 = 6, logfc.threshold = 2)
+markers_6 <- subset(markers_6, p_val_adj < 0.05)
+original.gene.list <- markers_6$avg_log2FC
+markers_6$gene <- rownames(markers_6)
+names(original.gene.list) <- markers_6$gene
+gene_list<-na.omit(original.gene.list)
+gene_list = sort(gene_list, decreasing = TRUE)
+head(gene_list)
+
+gse6 <- gseGO(geneList=gene_list, 
+             ont ="BP", 
+             keyType = "SYMBOL",
+             exponent = 1, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.01, 
+             verbose = TRUE, 
+             OrgDb = org.Mm.eg.db, 
+             pAdjustMethod = "BH", 
+             by = "fgsea")
+
+head(gse6@result)
+
+
+#select the most up/downregulated pathways /pathways of interest
+png("~/t.gondi_dc/res/figures/fig3/gse_genes_cluster6_enrichment.png", width = 30, height = 25, res = 600, units = "cm")
+ridgeplot(gse6, showCategory = 30,  core_enrichment = T) + 
+  ggplot2::labs(x = "enrichment distribution") +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#FDE725", "#21908C" ,"#660156" ))(200))
+dev.off()
+
+dotplot(gse6, showCategory=10, split=".sign") + 
+  ggplot2::facet_grid(.~.sign) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#660156" ,"#21908C", "#FDE725"))(200))
+
+cnetplot(gse6, categorySize="pvalue",foldChange = gene_list)
+
+png("~/t.gondi_dc/res/figures/fig3/gse_genes_cluster_6.png", width = 40, height = 12, units = "cm", res = 600)
+heatplot(gse6, showCategory = 20, foldChange = gene_list) +
+  ggplot2::scale_fill_gradientn(colors = colorRampPalette(c("#660156" ,"#21908C", "#FDE725"))(200))
+dev.off()
+
+
+
+```
+
+
+Visualize GO-terms using GO-plot
+
+First rewrite one of the functions to visualize the gene names in the GO-term analysis
+
+```{r, new function to display genes on the x-axis of the heatmap}
+
+GOHeat_fix <- function (data, nlfc, fill.col) 
+{
+  x <- y <- z <- NULL
+  if (missing(nlfc)) 
+    nlfc <- 0
+  else nlfc <- nlfc
+  if (missing(fill.col)) 
+    fill.col <- c("firebrick", "white", "dodgerblue")
+  else fill.col <- fill.col
+  distance <- dist(data)
+  cluster <- hclust(distance)
+  M <- dim(data)[2]
+  nterm <- M - nlfc
+  if (nlfc == 0) {
+    s <- rowSums(data[, 1:nterm])
+    tmp <- NULL
+    for (r in 1:nrow(data)) {
+      tmp <- c(tmp, as.numeric(gsub(1, s[r], data[r, 1:nterm])))
+    }
+  }
+  else {
+    tmp <- NULL
+    for (r in 1:nrow(data)) {
+      tmp <- c(tmp, as.numeric(gsub(1, data[r, (nterm + 
+                                                  1)], data[r, 1:nterm])))
+    }
+  }
+  df <- data.frame(x = factor(rep(cluster$order, each = nterm)), y = rep(colnames(data[, 
+                                                                               1:nterm]), length(rownames(data))), z = tmp, lab = rep(rownames(data), 
+                                                                                                                                      each = nterm))
+  df_o <- df[order(df$x), ]
+  g <- ggplot() +
+    geom_tile(data = df_o, aes(x = x, y = y, fill = z)) +
+    scale_x_discrete(breaks = 1:length(unique(df_o$x)), labels = unique(df_o$lab)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(), 
+          axis.text.y = element_text(size = 14),
+          panel.background = element_blank(), 
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank()) +
+    coord_fixed()
+  if (nlfc == 0) {
+    g + scale_fill_gradient2("Count", space = "Lab", low = fill.col[2], 
+                             mid = fill.col[3], high = fill.col[1])
+  }
+  else {
+    g + scale_fill_gradient2("logFC", space = "Lab", low = fill.col[3], 
+                             mid = fill.col[2], high = fill.col[1])
+  }
+}
+
+```
+
+Next format the data received from the gprofiler analysis
+```{r, GO visualization}
+
+library(GOplot)
+library(data.table)
+library(gprofiler2)
+
+#get the DEG betwe
+go.p.c <- go.table[go.table$external_gene_name %in% (rownames(dc.markers.C3)),]
+head(go.p.c)
+#subset so you only have the "immune system process" genes 
+
+DEG_12h <- gost(query = dc.markers.C3$gene, organism = "mmusculus", sources = c("GO:BP"))
+#Format data for GOplot
+head(DEG_12h$result)
+
+go.rich <- data.frame(ID = DEG_12h$result$term_id, adj_pval = DEG_12h$result$p_value, Term = DEG_12h$result$term_name)
+
+#go.rich <- go.rich[1:5,]
+
+#take go.table for genes of interest, in this case DEG between cluster 3 and 4
+
+#create a new data-frame
+ID = c()
+Genes = c()
+for (i in unique(go.p.c[[5]])) {
+  ID = c(ID, i)
+  go <- subset(go.p.c, go_id == i)
+  #Term = c(Term, unique(go[[6]]))
+  Genes = c(Genes, paste(unique(go[[2]]), collapse = ", "))
+}
+go.data = data.frame(ID, Genes)
+
+go.data <- dplyr::left_join(go.data, go.rich, by = "ID")
+go.data = na.omit(go.data)
+head(go.data)
+go.data$Category <- paste("BP")
+
+gene.list <- data.frame(ID = markers$gene, logFC = markers$avg_log2FC)
+
+gene.list <- gene.list[order(-gene.list$logFC),]
+
+circ <- circle_dat(go.data, gene.list)
+circ <- circ[order(circ$logFC),]
+
+EC.genes <- data.frame((circ$genes), circ$logFC) %>% unique()
+process <- go.rich$Term
+
+EC <- setNames(list(EC.genes, process), nm = c("genes", "process"))
+chord <- chord_dat(circ, genes = EC$genes, process = EC$process)
+
+GOHeat_fix(chord[,c(2)], nlfc = 0, fill.col = c("#440154" ,"#21908C", "#FDE725"))
+GOHeat(chord, nlfc = 0, fill.col = c('red', 'yellow', 'green'))
+
+GOCircle(circ)
+
+```
+
+```{r,}
+
+#get the DEG betwe
+go.p.c <- go.table[go.table$external_gene_name %in% (rownames(dc.markers.C3)),]
+head(go.p.c)
+
+gse@result$core_enrichment <- gsub("/", ",", gse@result$core_enrichment)
+
+go.rich <- data.frame(ID = gse@result$ID, adj_pval = gse@result$p.adjust, Term = gse@result$Description, Genes = gse@result$core_enrichment, Category = gse@result$ONTOLOGY)
+
+#go.rich <- go.rich[1:5,]
+
+#take go.table for genes of interest, in this case DEG between cluster 3 and 4
+
+dc.markers.C3 <- dc.markers.C3[order(-dc.markers.C3$avg_log2FC),]
+
+#subset the 10 most enriched and most downregulated genes
+select <- markers[c(1:10, 104:113),]
+gene.list <- data.frame(ID = dc.markers.C3$gene, logFC = dc.markers.C3$avg_log2FC)
+
+
+gene.list <- gene.list[order(-gene.list$logFC),]
+
+#subset the 10 genes with the highest and lowest logFC
+
+circ <- circle_dat(go.rich, gene.list)
+circ <- circ[order(-circ$logFC),]
+circ <- circ[c(1:20, 721:740),]
+EC.genes <- data.frame((circ$genes), circ$logFC) %>% unique()
+process <- go.rich$Term
+
+EC <- setNames(list(EC.genes, process), nm = c("genes", "process"))
+chord <- chord_dat(circ, genes = EC$genes, process = EC$process)
+
+GOHeat_fix(chord, nlfc = 0, fill.col = c("#440154" ,"#21908C", "#FDE725"))
+GOHeat(chord, nlfc = 0, fill.col = c('red', 'yellow', 'green'))
+
+GOCircle(circ, zsc.col = c('yellow', 'black', 'cyan'))
+
+```
+
+
+As we also used cluster profiler which seems to give us a slightly more detailed analysis we will also reformat this data accordingly to visualize GO-terms of interest
+
+
+
+I can include multiple tests to this analysis - such as reactome etc., add them as additional category to the plot and simply attach it to the bottom. 
+
+There is a distinction between mature and immature DCs [Shalek A., 2013](https://pubmed.ncbi.nlm.nih.gov/23685454/) or GM-DCs (= mature) and GM-Macs (= immature) [Helft J., 2015](https://pubmed.ncbi.nlm.nih.gov/26084029/). Therefore we want to see whether the identified sub-populations in our UMAP correspond to these classifications by using markers that correspond to these classifications.
+
+```{r, plot the mature and immature markers on umaps, fig.width= 12, fig.height= 6}
+
+#Way to identify cluster identity? 
+
+matdc <- c("Ccr7", "Ccl22", "Serpinb9", "Cd83")
+immatdc <- c("Tnf", "Il1a", "Cxcl10", "C5ar1")
+
+p1 <- FeaturePlot(se.dc.mus, features = c("Ccr7"), cols = c("lightgray", "mistyrose", "darkred"))
+p2 <- FeaturePlot(se.dc.mus, features = c("Cd83"), cols = c("lightgray", "mistyrose", "darkred"))
+p3 <- FeaturePlot(se.dc.mus, features = c("C5ar1"), cols = c("lightgray", "lightblue", "darkblue"))
+p4 <- FeaturePlot(se.dc.mus, features = c("Il1a"), cols = c("lightgray", "lightblue", "darkblue"))
+
+#png(filename = "~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/mature_vs_immature_umap.png", width = 30, height = 15, res = 300, units = "cm") #Units are pixels by default
+print(plot_grid(p1,p2,p3,p4, ncol = 2, nrow = 2))
+#dev.off()
+
+
+```
+
+```{r, AddModuleScore based on maturity}
+
+
+matdc <- c("Ccr7", "Ccl22", "Serpinb9", "Cd83")
+immatdc <- c("Tnf", "Il1a", "Cxcl10", "C5ar1")
+
+se.dc.mus <- AddModuleScore(se.dc.mus, features = matdc, assay = "SCT", name = "class", seed = 1)
+
+head(se.dc.mus[[]])
+
+# ModuleScores added for each gene of each cell -> 
+# write if statement that says if 3 our of 4 are positive = mature, if 2 out of 4 = positive = intermediate, if 1 out of 4 = positive = immature! 
+list1 <- paste0("class", 1:length(matdc))
+
+#Maybe I will need to write a for loop for this
+list2 <- lapply(list1, function (y){
+sapply((se.dc.mus@meta.data["y"]), function(x) {
+  if (x > 0)  paste0(1) else paste0(0)
+  })  
+}
+)
+
+
+maturedcs1 <- sapply((se.dc.mus@meta.data$matureDC1), function(x) {
+  if (x > 0)  paste0(1) else paste0(0)
+  })
+maturedcs2 <- sapply((se.dc.mus@meta.data$matureDC2), function(x) {
+  if (x > 0)  paste0(1) else paste0(0)
+  })
+maturedcs3 <- sapply((se.dc.mus@meta.data$matureDC3), function(x) {
+  if (x > 0)  paste0(1) else paste0(0) 
+  })
+
+maturedcs4 <- sapply((se.dc.mus@meta.data$matureDC4), function(x) {
+  if (x > 0)  paste0(1) else paste0(0) 
+  })
+
+maturityscores <- data.frame(maturedcs1, maturedcs2, maturedcs3, maturedcs4, stringsAsFactors = F) %>% 
+  mutate_all(as.numeric) 
+rownames(maturityscores) <- rownames(se.dc.mus@meta.data)
+maturityscores <- transform(maturityscores, sum = rowSums(maturityscores))
+
+#attach maturity as a column to the dataframe: 
+
+maturityscores <- as.data.frame(sapply((maturityscores$sum), function(x) {
+  if(x >= 3) paste0("GM-DC") 
+  else paste0("GM-Mac")
+  }))
+
+rownames(maturityscores) <- rownames(se.dc.mus@meta.data)
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = maturityscores, col.name = "celltype")
+
+DimPlot(se.dc.mus, group.by = "cell_class")
+DimPlot(se.dc.mus, group.by = "celltype")
+DimPlot(se.dc.mus, group.by = "celltype")
+
+FeaturePlot(se.dc.mus, features = "Ccr7")
+
+```
+
+```{r, write a function for adding cell classifications}
+
+class_cell <- function(object, features, class_thrs, colname, firstclass, secondclass, seed = 1)
+# object = seurat object
+# modulescores = charactervector with names of modulescorecolumns 
+# colname = metadata column name for the classifications
+# firstclass = classification for cells fulfilling the criteria of the classification based on the input features
+# secondclass = classification of cells failing to fulfill the classification based on input features
+  {
+# ModuleScores added for each gene of each cell -> 
+# write if statement that says if 3 our of 4 are positive = firstclass, if 2 out of 4 = positive = secondclass! 
+
+object <- AddModuleScore(object, features = features , assay = "SCT" , name = "class" , seed = seed)
+  
+#make a list of the programs
+list1 <- paste0("class", 1:length(features))
+
+scores <- object@meta.data[list1] > 0
+scores[scores] <- 1
+scores[!scores] <- 0
+
+scores <- as.data.frame(scores)
+
+rownames(scores) <- rownames(object@meta.data) # this is where I get the error : Error in `.rowNamesDF<-`(x, value = value) : invalid 'row.names' length
+
+scores <- transform(scores, sum = rowSums(scores))
+
+#attach classification as a column to the dataframe: 
+
+scores <- as.data.frame(sapply((scores$sum), function(x) {
+  if(x >= class_thrs) paste0(as.character(firstclass)) # change this function so you can set a value of choice here to classify
+  else paste0(as.character(secondclass))
+  }))
+
+rownames(scores) <- rownames(object@meta.data)
+
+object <- AddMetaData(object, metadata = scores, col.name = colname)
+
+return(object)
+
+}
+
+
+test <- class_cell(object = se.dc.mus, features = matdc, class_thrs = 3, colname = "classification", firstclass = "first", secondclass = "second")
+
+
+```
+
+
+Next we want to infer on the DEG between the maturity state/immune cell type and the original cell class of the metadata i.e. the infection state
+
+```{r, pairwise DGEA for mature vs immature}
+
+se.dc.mus$cluster_and_cell_class <- paste0(se.dc.mus$seurat_clusters, "_", se.dc.mus$cell_class)
+se.dc.mus$cell_class_type<- paste0(se.dc.mus$cell_class, "_", se.dc.mus$celltype)
+se.dc.mus$cluster_type <- paste0(se.dc.mus$SCT_snn_res.0.8, "_", se.dc.mus$celltype)
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
+
+id1 <- c("ctrl_GM-DC", "LDM_Lys3h_GM-DC", "PTG_Lys3h_GM-DC")
+id2 <- c("ctrl_GM-Mac", "LDM_Lys3h_GM-Mac", "PTG_Lys3h_GM-Mac")
+
+control_celltype <- FindMarkers(se.dc.mus,ident.1 = id1, ident.2 = id2, min.pct = 0.25)
+
+id3 <- c("3_GM-DC", "4_GM-DC")
+id4 <- c("3_GM-Mac", "4_GM-Mac")
+
+markers <- FindMarkers(se.dc.mus,ident.1 = 3, ident.2 = 4, min.pct = 0.25)
+
+markers <- subset(markers, p_val_adj < 0.05)
+
+unique_inf <- setdiff(rownames(infected_m_3h), rownames(control_celltype))
+
+unique_m_3h_inf <- subset(infected_m_3h, rownames(infected_m_3h) %in% unique_inf)
+
+infected_maturity_m_12h <- FindMarkers(se.dc.mus,ident.1 = id5, ident.2 = id6, min.pct = 0.25)
+
+infected_maturity_m_12h
+
+```
+
+DCs and Macs specific signture 
+```{r}
+Mac_sig <- c("Hacd4", "Tmem273", "Tlr4", "Fgd4", "Sqor", "Csf3r", "Plod1", "Tom1", "Pld3", "Tpp1", "Ctsd", "Lamp2", "Pla2g4a", "Fcgr1", "Mr1", "Mertk", "Cd14", "Tbxas1", "Fcgr3", "Spp1", "Cd164", "Tcn2", "Dok3", "Ctsl", "Tspan14")
+Dc_sig <- c("Adam19", "Ccr7", "Flt3", "Gpr132", "H2-Eb2", "Hmgn3", "Kit", "Klri1", "Kmo", "P2ry10", "Nectin1", "Rab30", "Slamf7", "Traf1", "Zbtb46", "Dpp4", "Runx3")
+```
+
+LPS response in Macs Vs Dcs
+```{r}
+lps_res_2 <- c("Rel", "Gnb4", "Ccr7", "Irf8", "Ccl22", "Tmem39a", "Cd83", "Zfp36l1", "Tnfsf4", "Ccnd2", "Stat2", "Calcrl", "Pml", "Irf9", "Irf7", "Ddx58", "Ifit1", "Ifih1", "Rsad2", "Mapkapk2", "Ccl3", "Plek", "Ifit3", "Inhba", "Mt2", "Cd14", "Clec4e", "Slc7a11", "Tnf", "Ikbke", "Cxcl2", "Ptx3", "Il1a", "Il6", "Il1b", "Cxcl10", "Ets2")
+```
+
+
+
+```{r, volcano plots for visualization of DEG}
+
+volcano.infected.3h <- EnhancedVolcano(control_celltype, lab = rownames(control_celltype),x= "avg_log2FC", y = "p_val_adj", xlim = c(-10,10), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+
+
+volcano.infected.12h <- EnhancedVolcano(infected_maturity_m_12h, lab = rownames(infected_maturity_m_12h),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+volcano.control <- EnhancedVolcano(control_maturity_m , lab = rownames(control_maturity_m),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+volcano.infected.3h
+volcano.infected.12h
+volcano.control
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/pairwise-DE-infection-control-maturation-all.png", width = 20, height = 40, units = "cm", res = 300)
+print(cowplot::plot_grid(volcano.control, volcano.infected.3h, infected.12h, nrow = 3, ncol = 1))
+#dev.off()
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-3h-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
+print(volcano.infected.3h)
+#dev.off()
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-12h-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
+print(volcano.infected.12h)
+#dev.off()
+
+#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-control-mature-vs-immature.png", width = 15, height = 25, units = "cm", res = 300)
+print(volcano.control)
+#dev.off()
+```
+
+```{r, run the DGEA with the same trhesholds as used for volcano plots}
+
+#Filter the datasets according to the same thresholds as in volcano plots: 
+
+cmm <- FindMarkers(se.dc.mus,ident.1 = id1, ident.2 = id2, min.pct = 0.25, logfc.threshold = 1)
+cmm <- subset(cmm, p_val_adj < 0.01)
+
+imm3 <- FindMarkers(se.dc.mus,ident.1 = id3, ident.2 = id4, min.pct = 0.25, logfc.threshold = 1)
+imm3 <- subset(imm3, p_val_adj < 0.01)
+
+imm12 <- FindMarkers(se.dc.mus,ident.1 = id5, ident.2 = id6, min.pct = 0.25, logfc.threshold = 1)
+imm12 <- subset(imm12, p_val_adj < 0.01)
+
+cmm_g <- rownames(cmm)
+imm3_g <- rownames(imm3)
+imm12_g <- rownames(imm12)
+
+infection3h_maturity_specific <- setdiff(imm3_g, cmm_g)
+infectionc_specific <- setdiff(cmm_g, imm3_g)
+infection12h_maturity_specific <- setdiff(imm12_g, cmm_g)
+infectionc_specific2 <- setdiff(cmm_g, imm12_g)
+control_maturity_specific_markers <- union(infectionc_specific,infectionc_specific2)
+
+infection3h_maturity_specific <- setdiff(infection3h_maturity_specific, infection12h_maturity_specific)
+infection12h_maturity_specific <- setdiff(infection12h_maturity_specific, infection3h_maturity_specific)
+
+DEG_maturation_infection3h <- subset(imm3, rownames(imm3) %in% infection3h_maturity_specific)
+DEG_maturation_infection12h <- subset(imm12, rownames(imm12) %in% infection12h_maturity_specific)
+
+DEG_maturation_infection12h
+
+mat_12h_cor <- cor(t(as.matrix(se.dc.mus@assays$SCT@data[rownames(DEG_maturation_infection12h), ])))
+
+corrplot(mat_12h_cor, method="color", tl.col = "black", order = "FPC", col=colorRampPalette(c("blue4","white","red3"))(100), cl.lim = c(-1,1))
+
+
+```
+
+I would like to compare the differential expressed genes for LDM and PTG at 12h between mature and immature cells in more detail and display them in a nicer fashion than a volcano-plot, therefore I subset the data to only have mature and immature PTG and LDM unfected cells at 12 hours
+
+```{r, subset object}
+
+se.12h <- SubsetData(se.dc.mus, cells = rownames(subset(se.dc.mus[[]], cell_class_maturation %in% c("PTG_12h_mature","PTG_12h_immature", "LDM_12h_mature", "LDM_12h_immature"))))
+
+se.12h <- SetIdent(se.12h, value = "cell_class_maturation")
+se.12h.m<- FindAllMarkers(se.12h, logfc.threshold = 1, min.pct = 0.25, only.pos = T)
+se.12h.m  <- subset(se.12h.m, p_val_adj < 0.01)
+
+se.12h.m  %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+
+DoHeatmap(se.12h, features = se.12h.m$gene)
+
+
+```
+
+```{r, pairwise DEG cluster and timepoint based}
+
+#Paste the cluster to the respective cell_class of each gene and add as a new column in the metadata 
+se.dc.mus$cluster_and_cell_class <- paste0(se.dc.mus$SCT_snn_res.0.8, "_", se.dc.mus$cell_class)
+
+id1 <- c("2_LDM_12h", "2_PTG_12h")
+id2 <- c("3_PTG_12h", "5_LDM_12h")
+#Set identity
+se.dc.mus <- SetIdent(se.dc.mus, value = "cluster_and_cell_class")
+m12h <- FindMarkers(object = se.dc.mus, ident.1 = id1, ident.2 = id2, logfc.threshold = 0.5, min.pct = 0.25)
+m12h<- subset(m12h, p_val_adj < 0.05)
+m12h
+
+#Only for LDM12h
+
+id3 <- c("3_LDM_12h")
+id4 <- c("4_LDM_12h")
+
+m12hLDM <- FindMarkers(object = se.dc.mus, ident.1 = id3, ident.2 = id4, logfc.threshold = 0.5, min.pct = 0.25)
+m12hLDM <- subset(m12hLDM, p_val_adj < 0.05)
+m12hLDM
+
+id5 <- c("3_PTG_12h")
+id6 <- c("4_PTG_12h")
+
+m12hPTG <- FindMarkers(object = se.dc.mus, ident.1 = id5, ident.2 = id6, logfc.threshold = 0.5, min.pct = 0.25)
+m12hPTG <- subset(m12hPTG, p_val_adj < 0.05)
+m12hPTG
+
+
+#Make Volcano-plots to visualize the DGE 
+volcano.12h.cluster <- EnhancedVolcano(m12h, lab = rownames(m12h),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+volcano.12h.LDM.cluster <- EnhancedVolcano(m12hLDM, lab = rownames(m12hLDM),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+volcano.12h.PTG.cluster <- EnhancedVolcano(m12hPTG, lab = rownames(m12hPTG),x= "avg_logFC", y = "p_val_adj", xlim = c(-6,6), title = NULL, subtitle =NULL, pCutoff = 0.01, FCcutoff =  1, legendLabSize = 6, legendPosition = "right", axisLabSize = 10)
+
+volcano.12h.cluster
+volcano.12h.LDM.cluster
+volcano.12h.PTG.cluster
+
+m12h <- subset(m12h, avg_logFC > 1 & p_val_adj < 0.01)
+m12hLDM <- subset(m12hLDM, avg_logFC > 1 & p_val_adj < 0.01)
+m12hPTG <- subset(m12hPTG, avg_logFC > 1 & p_val_adj < 0.01)
+
+#add gene descriptions
+
+genetable.12h <- subset(genes.table, external_gene_name %in% rownames(m12h))
+genetable.12hLDM <- subset(genes.table, external_gene_name %in% rownames(m12hLDM))
+genetable.12hPTG <- subset(genes.table, external_gene_name %in% rownames(m12hPTG))
+
+m12h$external_gene_name <- rownames(m12h)
+m12hLDM$external_gene_name <- rownames(m12hLDM)
+m12hPTG$external_gene_name <- rownames(m12hPTG)
+
+m12h <- dplyr::left_join(m12h, genetable.12h, by = "external_gene_name")
+m12hLDM <- dplyr::left_join(m12hLDM, genetable.12hLDM, by = "external_gene_name")
+m12hPTG <- dplyr::left_join(m12hPTG, genetable.12hPTG, by = "external_gene_name")
+
+
+write.xlsx(m12h, "~/Dropbox/shared_ankarklev/Franzi-analysis/pairwise-DEG-12h-cluster2against3and5.xlsx", row.names =TRUE)
+write.xlsx(m12hLDM, "~/Dropbox/shared_ankarklev/Franzi-analysis/pairwise-DEG-12h-cluster2against5.xlsx", row.names =TRUE)
+write.xlsx(m12hPTG, "~/Dropbox/shared_ankarklev/Franzi-analysis/pairwise-DEG-12h-cluster2against3.xlsx", row.names =TRUE)
+
+png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-12h-cluster2-cluster3and5.png", width = 15, height = 25, units = "cm", res = 300)
+print(volcano.12h.cluster)
+dev.off()
+
+png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-12h-LDM-cluster2-cluster5.png", width = 15, height = 25, units = "cm", res = 300)
+print(volcano.12h.LDM.cluster)
+dev.off()
+
+png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/volcanoplot-12h-PTG-cluster2-cluster3.png", width = 15, height = 25, units = "cm", res = 300)
+print(volcano.12h.PTG.cluster)
+dev.off()
+
+```
+
+
+Integrate toxodata in the mouse data 
+
+
+```{r, add toxoclusters to metadata and highlight them in umap}
+
+toxo_clusters <- data.frame(toxo.cluster = paste0("toxo", "_", se.toxo.cell$seurat_clusters), cell = rownames(se.toxo.cell[[]]))
+rownames(toxo_clusters) <- toxo_clusters$cell
+names(toxo_clusters)[1] <- "toxo_cluster"
+toxo_clusters$cell <- NULL
+head(toxo_clusters)
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = toxo_clusters, col.name = "toxoclusters")
+
+#Visulize only cells of toxo_cluster = toxo_2 on DC uMAP!
+
+DimPlot(se.dc.mus, group.by = "toxoclusters", split.by = "toxoclusters")
+
+toxo.dc.0 <- DimPlot(se.dc.mus, cols = c("darkred", "gray48", "gray48", "gray48", "gray48", "gray48", "gray48"))
+
+toxo.dc.1 <- DimPlot(se.dc.mus, cols = c("gray48", "darkred", "gray48", "gray48", "gray48", "gray48", "gray48"))
+
+toxo.dc.2 <- DimPlot(se.dc.mus, cols = c("gray48", "gray48","darkred" ,"gray48", "gray48", "gray48", "gray48"))
+  
+toxo.dc.3 <- DimPlot(se.dc.mus, cols = c("gray48",  "gray48", "gray48", "darkred","gray48", "gray48", "gray48"))
+
+
+png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/Toxo-Clusters-DC-Umap.png", width = 40, height = 25, unit= "cm", res= 300)
+print(cowplot::plot_grid(toxo.dc.0, toxo.dc.1, toxo.dc.2, toxo.dc.3))
+dev.off()
+  
+```
+
+```{r, add toxo cell cycle as metadata to the mouse data}
+
+toxo_phase <- as.data.frame(paste0(se.toxo$Phase))
+rownames(toxo_phase) <- rownames(se.toxo[[]])
+names(toxo_phase)[1] <- "toxo_phase"
+head(toxo_phase)
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = toxo_phase, col.name = "toxo_phase")
+
+DimPlot(se.dc.mus, group.by = "toxo_phase")
+```
+
+
+
+```{r, DEG toxoclusters in DC data}
+#Set identity to Toxoclusters 
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "toxoclusters")
+
+toxocluster.dc.markers <- FindAllMarkers(se.dc.mus, logfc.threshold = 1, min.pct = 0.25, only.pos = T)
+toxocluster.dc.markers  <- subset(toxocluster.dc.markers, p_val_adj < 0.01)
+
+toxocluster.dc.markers  %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+
+se.dc.mus <- SetIdent(se.dc.mus, value = "seurat_clusters")
+toxocluster.dc.heatmap <- DoHeatmap(se.dc.mus, features = toxocluster.dc.markers$gene)
+
+toxocluster.dc.heatmap
+
+#Add gene descriptions: 
+genetabletoxoclusters <- subset(genes.table, external_gene_name %in% rownames(toxocluster.dc.markers))
+toxocluster.dc.markers$external_gene_name <- rownames(toxocluster.dc.markers)
+
+
+toxocluster.dc.markers<- dplyr::left_join(toxocluster.dc.markers, genetabletoxoclusters, by = "external_gene_name")
+
+
+write.xlsx(toxocluster.dc.markers, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-spreadsheets/Toxoclusters-DC-Markers.xlsx")
+
+```
+
+
+```{r, pairwise DEG toxo-cluster and maturation}
+
+#Paste the cluster to the respective cell_class of each gene and add as a new column in the metadata 
+se.dc.mus$toxocluster_maturation <- paste0(se.dc.mus$toxoclusters, "_", se.dc.mus$maturation_state)
+
+id0 <- "toxo_0_immature"
+id10 <- "toxo_0_mature"
+#Set idenity
+se.dc.mus <- SetIdent(se.dc.mus, value = "toxocluster_maturation")
+toxo_dc_c0 <- FindMarkers(object = se.dc.mus, ident.1 = id0, ident.2 = id10, logfc.threshold = 2)
+toxo_dc_c0 <- subset(toxo_dc_c0, p_val_adj < 0.01)
+#Set filters! 
+toxo_dc_c0
+
+id1 <- "toxo_1_immature"
+id2 <- "toxo_1_mature"
+#Set idenity
+se.dc.mus <- SetIdent(se.dc.mus, value = "toxocluster_maturation")
+toxo_dc_c1 <- FindMarkers(object = se.dc.mus, ident.1 = id1, ident.2 = id2, logfc.threshold = 2)
+toxo_dc_c1 <- subset(toxo_dc_c1, p_val_adj < 0.01)
+#Set filters! 
+toxo_dc_c1
+
+id3 <- "toxo_2_immature"
+id4 <- "toxo_2_mature"
+#Set idenity
+se.dc.mus <- SetIdent(se.dc.mus, value = "toxocluster_maturation")
+toxo_dc_c2 <- FindMarkers(object = se.dc.mus, ident.1 = id3, ident.2 = id4, logfc.threshold = 2)
+toxo_dc_c2 <- subset(toxo_dc_c2, p_val_adj < 0.01)
+#Set filters! 
+toxo_dc_c2
+
+id5 <- "toxo_3_immature"
+id6 <- "toxo_3_mature"
+#Set idenity
+se.dc.mus <- SetIdent(se.dc.mus, value = "toxocluster_maturation")
+toxo_dc_c3 <- FindMarkers(object = se.dc.mus, ident.1 = id5, ident.2 = id6, logfc.threshold = 2)
+toxo_dc_c3 <- subset(toxo_dc_c3, p_val_adj < 0.01)
+#Set filters! 
+toxo_dc_c3
+
+
+#Forth cluster has to little cells to run DGEA!!
+id7 <- "toxo_4_immature"
+id8 <- "toxo_4_mature"
+#Set idenity
+se.dc.mus <- SetIdent(se.dc.mus, value = "toxocluster_maturation")
+toxo_dc_c4 <- FindMarkers(object = se.dc.mus, ident.1 = id7, ident.2 = id8, logfc.threshold = 2)
+toxo_dc_c4 <- subset(toxo_dc_c4, p_val_adj < 0.01)
+#Set filters! 
+toxo_dc_c4
+
+
+##Add gene descriptions:
+
+genetableC0 <- subset(genes.table, external_gene_name %in% rownames(toxo_dc_c0))
+genetableC1 <- subset(genes.table, external_gene_name %in% rownames(toxo_dc_c1))
+genetableC2 <- subset(genes.table, external_gene_name %in% rownames(toxo_dc_c2))
+genetableC3 <- subset(genes.table, external_gene_name %in% rownames(toxo_dc_c3))
+
+
+toxo_dc_c0$external_gene_name <- rownames(toxo_dc_c0)
+toxo_dc_c1$external_gene_name <- rownames(toxo_dc_c1)
+toxo_dc_c2$external_gene_name <- rownames(toxo_dc_c2)
+toxo_dc_c3$external_gene_name <- rownames(toxo_dc_c3)
+
+toxo_dc_c0 <- dplyr::left_join(toxo_dc_c0, genetableC0, by = "external_gene_name")
+toxo_dc_c1 <- dplyr::left_join(toxo_dc_c1, genetableC0, by = "external_gene_name")
+toxo_dc_c2 <- dplyr::left_join(toxo_dc_c2, genetableC0, by = "external_gene_name")
+toxo_dc_c3<- dplyr::left_join(toxo_dc_c3, genetableC0, by = "external_gene_name")
+
+
+
+write.xlsx(toxo_dc_c0, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-spreadsheets/ToxoCluster0-DC-immature(negative)-mature(positive.xlsx")
+write.xlsx(toxo_dc_c1, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-spreadsheets/ToxoCluster1-DC-immature(negative)-mature(positive.xlsx")
+write.xlsx(toxo_dc_c2, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-spreadsheets/ToxoCluster2-DC-immature(negative)-mature(positive.xlsx")
+write.xlsx(toxo_dc_c3, "~/Dropbox/shared_ankarklev/Franzi-analysis/DEG-spreadsheets/ToxoCluster3-DC-immature(negative)-mature(positive.xlsx")
+
+##Get numbers of cells for each cluster
+
+```
+
+```{r, visualize the cells that are Gra15+ and Rop16+ in the DC set}
+
+toxo_gra <- as.data.frame(paste0(se.toxo$Gra15_expression))
+rownames(toxo_gra) <- rownames(se.toxo[[]])
+names(toxo_gra)[1] <- "gra-expression"
+head(toxo_gra)
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = toxo_gra, col.name = "Gra15_expression")
+
+
+toxo_rop <- as.data.frame(paste0(se.toxo$Rop16_expression))
+rownames(toxo_rop) <- rownames(se.toxo[[]])
+names(toxo_rop)[1] <- "rop-expression"
+head(toxo_rop)
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = toxo_rop, col.name = "Rop16_expression")
+
+DimPlot(se.dc.mus, group.by = "Rop16_expression")
+
+se.dc.rop <- subset(se.dc.mus, subset = Rop16_expression %in% "Rop16+", slot = "data")
+se.dc.gra <- subset(se.dc.mus, subset = Gra15_expression %in% "Gra15+", slot = "data")
+DimPlot(se.dc.rop, group.by = "toxoclusters")
+DimPlot(se.dc.gra, group.by = "cell_class")
+
+DimPlot(se.dc.mus, group.by = "Gra15_expression")
+DimPlot(se.dc.mus, group.by = "Rop16_expression")
+
+```
+
+```{r, heatmaps for DEG}
+
+#generate heatmap
+gene_data <- data.frame(t(as.matrix(se.dc.mus@assays$RNA@data)),cluster= se.dc.mus$seurat_clusters,check.names = F)
+#average data over clusters 
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+#create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+#plot genes of interest 
+
+pheatmap(phmat1[rownames(dc.12h.markers.3),], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+dc.12h.markers.3$gene <- rownames(dc.12h.markers.3)
+dc.12h.markers.4$gene <- rownames(dc.12h.markers.4)
+
+dc.markers.12h.join <- bind_rows(dc.12h.markers.3, dc.12h.markers.4)
+
+png("~/t.gondi_dc/res/figures/fig3/heatmap_12h_DGEA.png", width = 25, height = 25 , unit = "cm", res = 300)
+pheatmap(phmat1[rownames(dc.markers.12h.join),c(4,5)], fontsize_row = 8, cellheight = 8, cellwidth = 40, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+dev.off()
+
+```
+
+```{r, heatmap between cell-types, visualization of signature}
+
+Idents(se.dc.mus) <- "cell_class_type"
+lps <- WhichCells(se.dc.mus, idents = c("LPS_GM-Mac","LPS_GM-DC")) #subset cluster 2 
+lps_ctrlset <- subset(se.dc.mus, idents = c("ctrl_GM-Mac", "ctrl_GM-DC"))
+dc_set <- subset(se.dc.mus, idents = c("LPS_GM-DC","ctrl_GM-DC", "PTG_12h_GM-DC", "PTG_3h_GM-DC", "LDM_3h_GM-DC", "LDM_12h_GM-DC","PTG_Lys3h_GM-DC", "LDM_Lys3h_GM-DC"))
+mac_set <- subset(se.dc.mus, idents = c("LPS_GM-Mac", "ctrl_GM-Mac", "PTG_12h_GM-Mac", "PTG_3h_GM-Mac", "PTG_Lys3h_GM-Mac", "LDM_3h_GM-Mac", "LDM_12h_GM-Mac","LDM_Lys3h_GM-Mac"))
+```
+
+```{r, hetamap for GM-DC set}
+
+gene_data <- data.frame(t(as.matrix(se.dc.mus@assays$RNA@data)),cluster=se.dc.mus$celltype,check.names = F)
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+
+png("~/t.gondi_dc/res/figures/fig2/heatmap_celltypes.png", width = 14 , height = 14, res = 600, units = "cm")
+print(pheatmap(phmat1[c(Dc_sig, Mac_sig),], fontsize_row = 8, cellheight = 8, cellwidth = 100, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200)))
+dev.off()
+
+```
+
+
+```{r, DEG between cluster 3 and cluster 4 for metabolic processes only}
+
+go.p.c <- go.table[go.table$external_gene_name %in% (rownames(dc.markers.12h.join)),]
+
+#subset so you only have the "immune system process" genes 
+
+DEG_12h <- gost(query = rownames(dc.markers.12h.join), organism = "mmusculus", sources = "GO:BP")
+
+print(ggplot(head(DEG_12h$result, 10), aes(reorder(term_name, -log10(p_value)), -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black", fill = "darkblue") +
+  coord_flip() +
+  #scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 20, name = "Reds")) + 
+  scale_y_continuous() +
+  xlab("Biological Process")+
+  ylab("Enrichment Score") +
+  theme(axis.text.y = element_text(size = 12), axis.title = element_blank(), panel.background = element_blank()))
+
+go.p.c <- go.p.c[go.p.c$name_1006 ==  "immune system process",]
+
+#subset the DEG at 12h for only genes related to immune system processes
+
+markers.12h.def <- dc.markers.12h.join[rownames(dc.markers.12h.join) %in% go.p.c$external_gene_name ,]
+markers.12h.def
+
+
+```
+
+We want to run an alternative way to compare DEG between conditions and/or timepoints
+
+```{r, run differential gene expression analysis between conditions using DESeq2 (only mouse)}
+
+dc.data <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
+
+#subset for only mouse genes: 
+mus.genes <- rownames(dc.data)[grep("ENSMUSG",rownames(dc.data))]
+
+head(mus.genes)
+dc.data.mus <- dc.data[mus.genes,]
+dc.data.mus[1:5,1:5]
+dc.data.mus <- round(dc.data.mus)
+names <- rownames(dc.data.mus)
+dc.data.mus <- cbind(names, dc.data.mus)
+#make a more comprehensive metadatafile
+meta_full <- data.frame(id = colnames(se.dc.mus),sample = se.dc.mus$cell_class, condition = se.dc.mus$cell_class, celltype = se.dc.mus$celltype, pathology = se.dc.mus$pathology, timepoint = se.dc.mus$timepoint, toxo_nUMI_p = se.dc.mus$toxo_nUMI_p, strain = se.dc.mus$strain)
+rownames(meta_full) <- 1:nrow(meta_full)
+
+#subset count-data to match meta-data
+dc.data.mus <- dc.data.mus[colnames(dc.data.mus) %in% meta_full$id]
+
+write.table(meta_full, "~/Downloads/meta.full_1.csv", quote = F, sep = ";", row.names = F)
+write.table(dc.data.mus, "~/Downloads/dc.data.mus.tsv", quote = F, sep = "\t", row.names = rownames(dc.data.mus))
+
+meta_full  <- read.table("~/Downloads/meta.full.csv", sep = ";", header = T)
+
+meta_full$pathology[meta_full$=="LPS"] <- "LPS"
+
+meta_full$pathology[meta_full$celltype %in% c("PTG_Lys3h", "LDM_Lys3h")] <- "Lysate"
+
+```
+
+```{r, construct DESEQDataSet Object}
+
+dds <- DESeqDataSetFromMatrix(countData= dc.data.mus, 
+                              colData= meta_full, 
+                              design= ~ timepoint + celltype, tidy = TRUE)
+
+dds
+
+dds <- DESeq(dds)
+
+res <- results(dds)
+head(results(dds, tidy=TRUE)) 
+summary(res)
+#sort by p-value
+res <- res[order(res$padj),]
+head(res)
+par(mfrow=c(2,3))
+plotCounts(dds, gene=rownames(res[1,]),intgroup="timepoint")
+plotCounts(dds, gene=rownames(res[2,]), intgroup="pathology")
+plotCounts(dds, gene=rownames(res[3,]), intgroup="pathology")
+plotCounts(dds, gene=rownames(res[4,]), intgroup="pathology")
+plotCounts(dds, gene=rownames(res[5,]), intgroup="pathology")
+plotCounts(dds, gene=rownames(res[6,]), intgroup="pathology")
+
+
+
+```
+
+
+
+We also want to  identify multicellular programs (MCPs) and investigate them further, potentially we would like to adjust them to work with dual-scSeq input. 
+
+```{r, multicelullar programs}
+
+devtools::install_github("livnatje/DIALOGUE")
+library(DIALOGUE)
+# Run a toy example
+rA<-readRDS(system.file("Data", "test.example.rds", package = "DIALOGUE"))
+
+```
+
+Format the the data as given in the rA example from https://www.biorxiv.org/content/10.1101/2020.08.11.245472v1
+
+```{r, Format data for MCP analysis}
+
+#GM-DC
+se.gmdc <- readRDS("~/t.gondi_dc/res/seurat-objects/dc-only.RDS")
+meta_mcp <- data.frame(pathology = as.factor(ifelse(se.gmdc@meta.data$cell_class %in% c("LDM_3h","LDM_12h","PTG_3h","PTG_12h"), paste("infected"), ifelse(se.gmdc@meta.data$cell_class %in% c("LPS"), paste("LPS"),paste("uninfected")))),
+                       cell_ID = as.factor(rownames(se.gmdc@meta.data)),
+                       timepoint = as.factor(ifelse(se.gmdc@meta.data$cell_class %in% c("control","LDM_Lys3h","PTG_Lys3h", "LPS"),paste(0),ifelse(se.gmdc@meta.data$cell_class %in% c("LDM_3h", "PTG_3h"), paste(3),paste(12)))), 
+                       p_toxo = as.numeric(se.gmdc@meta.data$toxo_nUMI_p), 
+                       phase = as.factor(se.gmdc@meta.data$Phase),
+                       sample = as.factor(se.gmdc@meta.data$cell_class), 
+                       strain = as.factor(ifelse(se.gmdc@meta.data$cell_class %in% c("LDM_3h", "LDM_Lys3h"), paste("LDM"), ifelse(se.gmdc@meta.data$cell_class %in% c("PTG_3h", "PTG_Lys3h"), paste("PTG"), paste("None")))),
+                       cellQ = as.numeric(log10(se.gmdc@meta.data$nFeature_SCT)))
+meta_mcp <- within(meta_mcp, timepoint[pathology=="uninfected"] <- paste(0))
+levels(meta_mcp$pathology) <- c(TRUE, FALSE)
+meta_mcp$pathology <- as.logical(meta_mcp$pathology)
+rownames(meta_mcp) <- meta_mcp$cell_class
+rownames(meta_mcp) <- meta_mcp$cell_class
+head(meta_mcp)
+
+mat.dc <- as.matrix(se.gmdc@assays$RNA@counts)
+names <- colnames(mat.dc)
+#set each condition as one sample and see what we get
+samples <- meta_mcp$sample
+
+DC <- make.cell.type(name = "GM-DC",tpm = mat.dc,samples = samples, X = mat.dc,metadata = meta_mcp)
+
+
+#GM-Mac
+se.gmmac <- readRDS("~/t.gondi_dc/res/seurat-objects/mac-only.RDS")
+meta_mcp <- data.frame(pathology = as.factor(ifelse(se.gmmac@meta.data$cell_class %in% c("LDM_3h","LDM_12h","PTG_3h","PTG_12h"), paste("infected"), paste("uninfected"))),
+                       cell_ID = as.factor(rownames(se.gmmac@meta.data)),
+                       timepoint = as.integer(ifelse(se.gmmac@meta.data$cell_class %in% c("LDM_3h", "PTG_3h"), paste(3),paste(12))), 
+                       p_toxo = as.numeric(se.gmmac@meta.data$toxo_nUMI_p), phase = as.factor(se.gmmac@meta.data$Phase),
+                       sample = as.factor(se.gmmac@meta.data$cell_class), 
+                       cellQ = as.numeric(log10(se.gmmac@meta.data$nFeature_SCT)))
+                      
+meta_mcp <- within(meta_mcp, timepoint[pathology=="uninfected"] <- paste(0))
+levels(meta_mcp$pathology) <- c(TRUE, FALSE)
+meta_mcp$pathology <- as.logical(meta_mcp$pathology)
+rownames(meta_mcp) <- meta_mcp$cell_class
+head(meta_mcp)
+mat.mac <- as.matrix(se.gmmac@assays$RNA@counts)
+names <- colnames(mat.mac)
+#set each condition as one sample and see what we get
+samples <- meta_mcp$sample
+MAC <- make.cell.type(name = "GM-Mac",tpm = mat.mac,samples = samples, X = mat.mac,metadata = meta_mcp)
+
+#make a celltype list
+
+rA <- list(DC, MAC)
+names(rA) <- c("GM-DC","GM-Mac")
+```
+
+```{r, run dialogue}
+
+R<-DIALOGUE.run(rA = rA, # list of cell.type objects
+                main = "My.data",
+                k = 3, # number of MCPs to identify
+                results.dir = "~/t.gondi_dc/res/", 
+                conf = c("cellQ"), # any potential confounders DIALOGUE needs to account for; default is "cellQ" 
+                pheno = "pathology")
+
+
+X<-lapply(rA, function(r){
+    X1<-average.mat.rows(r@X,r@samples,f = colMedians)
+    return(X1)
+  })
+  cell.types<-names(rA)
+  names(X)<-cell.types
+  n1<-length(cell.types)
+
+  # Finding shared samples
+  samples<-unlist(lapply(cell.types, function(x) rownames(X[[x]])))
+  samplesU<-get.abundant(samples,n1)
+ f<-function(X1){
+    X1<-center.matrix(X[X1],dim = 2,sd.flag = T)
+    X1<-cap.mat(X[X1],cap = 0.01,MARGIN = 2)
+    X1<-X[X1][samplesU,]
+    return(X1)
+  }
+  X<-lapply(X, f)
+  k1<-ncol(X[1])
+
+  out<-DIALOGUE1.PMD(X = X,k = k,PMD2 = PMD2)
+
+
+```
+
+```{r, run LDA with only mouse genes}
+
+library(topicmodels)
+library(polmineR)
+library(tm)
+
+#create top5000 expressed genes (5000 genes with largest rowsums)
+
+exp <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
+       mus.genes <- rownames(exp)[grep("ENSMUSG",rownames(exp))]
+exp <- exp[mus.genes,]
+exp <- t(exp)
+
+exp <- t(se.dc.mus@assays$RNA@counts)
+exp <- colSums(exp)
+s <- sort(exp, decreasing = TRUE)
+top5000 <- names(s[1:5000])
+  
+  
+```
+
+```{r, run LDA for whole matrix (host and toxo)}
+
+library(topicmodels)
+library(polmineR)
+library(tm)
+
+#create top5000 expressed genes (5000 genes with largest rowsums)
+
+exp <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
+       mus.genes <- rownames(exp)[grep("ENSMUSG",rownames(exp))]
+exp <- exp[mus.genes,]
+exp <- t(exp)
+
+exp <- as.matrix(se.dc@assays$RNA@counts)
+exp <- t(exp)
+s <- colSums(exp)
+s <- sort(s, decreasing = TRUE)
+top100 <- names(s[1:100])
+top5000[4990:5000]
+
+
+```
+
+
+```{r, run LDA}
+
+tdm <- as.TermDocumentMatrix(GetAssayData(subset(se.dc,features = top5000),
+                                          assay = "RNA"),
+                             weighting = "weightTf"
+                             )
+# get frequency weights
+tdm <- weightTf(tdm)
+
+# convert Term times Document to Document times Term Matrix
+# desired input to LDA function
+dtm <- as.DocumentTermMatrix(tdm)
+
+# run LDA with 10 topics 
+
+dtm$v <- as.integer(dtm$v)
+
+#Run LDA
+
+
+lda.res <- LDA(dtm,
+               k = 10)
+
+k= 1:10
+top.topic.l <- lapply(k, function(x){
+ order(lda.res@beta[x,], decreasing = T)[1:20] 
+})
+names(top.topic.l) <- k
+
+top.2.genes <- lapply(top.topic.l,  function(x) {
+  data.frame(gene = lda.res@terms[x],
+  prob = exp(lda.res@beta[1,x]))
+})
+
+for(i in 1:10) {
+  top.2.genes[[i]]$topic <- i
+}
+
+top.2.genes <- do.call("rbind",top.2.genes)
+
+head(top.2.genes)
+
+```
+
+
+```{r, visualize the results}
+
+library(ggplot2)
+
+ggplot(top.2.genes[top.2.genes$topic == 6,], aes(gene, prob)) + 
+  geom_bar(stat = "identity") + 
+  coord_flip()
+
+```
+
+```{r, run gene co-expression network, scLink}
+
+library(scLink)
+
+count <- exp
+genes <- top100
+
+count.norm = sclink_norm(count, scale.factor = 1e6, filter.genes = FALSE, gene.names = genes)
+
+corr = sclink_cor(expr = count.norm, ncores = 1)
+
+corrplot::corrplot(corr =corr, method = "shade")
+
+networks = sclink_net(expr = count.norm, ncores = 1, lda = seq(0.5, 0.1, -0.05))
+
+net <- networks[[1]]
+
+```
+
+
+```{r, make new metadata}
+
+
+meta_mcp <- data.frame(pathology = as.factor(ifelse(se.dc.mus@meta.data$cell_class %in% c("LDM_3h","LDM_12h","PTG_3h","PTG_12h"), paste("infected"), ifelse(se.dc.mus@meta.data$cell_class %in% c("LPS"), paste("LPS"), ifelse(se.dc.mus@meta.data$cell_class %in% c("PTG_Lys3h", "LDM_Lys3h"), paste("Lysate"),paste("uninfected"))))),
+                       cell_ID = as.factor(rownames(se.dc.mus@meta.data)),
+                       timepoint = as.factor(ifelse(se.dc.mus@meta.data$cell_class %in% c("control","LDM_Lys3h","PTG_Lys3h", "LPS"),paste(0),ifelse(se.dc.mus@meta.data$cell_class %in% c("LDM_3h", "PTG_3h"), paste(3),paste(12)))), 
+                       p_toxo = as.numeric(se.dc.mus@meta.data$toxo_nUMI_p), 
+                       phase = as.factor(se.dc.mus@meta.data$Phase),
+                       sample = as.factor(se.dc.mus@meta.data$cell_class), 
+                       strain = as.factor(ifelse(se.dc.mus@meta.data$cell_class %in% c("LDM_3h", "LDM_Lys3h"), paste("LDM"), ifelse(se.dc.mus@meta.data$cell_class %in% c("PTG_3h", "PTG_Lys3h"), paste("PTG"), paste("None")))),
+                       cellQ = as.numeric(log10(se.dc.mus@meta.data$nFeature_SCT)))
+
+```
+
+

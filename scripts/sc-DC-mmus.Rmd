@@ -35,11 +35,60 @@ library(openxlsx)
 suppressMessages(require(biomaRt))
 library(EnhancedVolcano)
 library(pheatmap)
-library(STutility)
 library(RCurl)
 library(DESeq2)
+library(WGCNA)
 
 ```
+
+```{r, import data from BAM-analysis}
+
+cnt_131 <- read.table("~/t.gondi_dc/data/cnt/feat_count/count131.csv.gz", header = T,sep = "\t", row.names = 1)
+head(cnt_131)
+cnt_132 <- read.table("~/t.gondi_dc/data/cnt/feat_count/count132.csv.gz", header = T,sep = "\t", row.names = 1)
+
+meta <- read.table("~/t.gondi_dc/data/meta/properanno.csv", header = T, sep = ",", row.names = 1)
+head(meta)
+
+meta2 <- read.table("~/t.gondi_dc/data/meta/latest_mapping.csv", header = T, sep = ",")
+
+meta_131 <- meta2[grep(pattern = "131_", meta$cellname),]
+meta_132 <- meta2[grep(pattern = "132_", meta$cellname),]
+
+```
+
+```{r, format cnt_marix}
+
+#plate1
+cnt_131 <- cnt_131[,6:389]
+head(cnt_131)
+
+names <- sapply(colnames(cnt_131),
+               function(x) {strsplit(x,'_')[[1]][2]})
+colnames(cnt_131) <- names
+colnames(cnt_131) <- gsub("X", "", colnames(cnt_131))
+colnames(cnt_131) <- gsub("131.", "", colnames(cnt_131))
+colnames(cnt_131) <- paste0("131", sep = "_", colnames(cnt_131))
+head(cnt_131)
+
+#plate2
+cnt_132 <- cnt_132[,6:389]
+head(cnt_132)
+
+names <- sapply(colnames(cnt_132),
+               function(x) {strsplit(x,'_')[[1]][1]})
+colnames(cnt_132) <- names
+colnames(cnt_132) <- gsub("X", "", colnames(cnt_132))
+colnames(cnt_132) <- gsub("132.", "", colnames(cnt_132))
+colnames(cnt_132) <- paste0("132", sep = "_", colnames(cnt_132))
+head(cnt_132)
+
+dc.data <- cbind(cnt_131, cnt_132)
+
+
+```
+
+
 
 Import the count matrix of the single cell sequencing experiment and subset it, so it only contains the counts for the mouse genome
 
@@ -57,55 +106,79 @@ dc.data.mus <- dc.data[mus.genes,]
 
 ```
 
+```{r, get count for toxo genes}
+
+toxo.genes <- rownames(dc.data)[grep("TGME49",rownames(dc.data))]
+dc.data.toxo <- dc.data[toxo.genes,]
+
+dc.data.toxo[1:5,1:5]
+nUMI_toxo <-  as.data.frame(colSums(dc.data.toxo))
+
+se.dc.mus <- AddMetaData(se.dc.mus, metadata = nUMI_toxo, col.name = "nUMI_toxo")
+
+
+```
+
 Convert ensembl-Ids to gene symbols in the matrix
 
 ```{r make gene symbol annotation file}
+#Create a vector from the column names 
+gn <- as.vector(rownames(dc.data.mus))
+gn <- sapply(gn, function(x) {strsplit(x,'\\.')[[1]][1]} )
+gn <- as.vector(unlist(gn))
+rownames(dc.data.mus) <- gn
 
-#use ensembl mart 
+#Create an annotation file 
 
-mart <- useMart("ensembl")
+#mouse
+mus_ensembl <- AnnotationDbi::mapIds(org.Mm.eg.db::org.Mm.eg.db,
+                                      keys=gn,
+                                      column="SYMBOL",
+                                      keytype="ENSEMBL",
+                                      multiVals="first")
 
-mart <- useDataset("mmusculus_gene_ensembl", mart = mart)
-
-genes.table <- getBM(filters = "ensembl_gene_id", attributes = c("ensembl_gene_id", "external_gene_name", "description", "gene_biotype", "entrezgene_id"), values = rownames(dc.data.mus), mart = mart )
-
-head(genes.table)
-
-#write.table(genes.table, file = "gene_name_translation.tab")
-
-head(genes.table)
+#plasmodium
 
 
-#Give the data new unique rownames
-genes.table$unique_gene_name <- NA
-genes.table$unique_gene_name[!is.na(genes.table$external_gene_name)] <- make.unique(genes.table$external_gene_name[!is.na(genes.table$external_gene_name)])
-genes.table$unique_id[!is.na(genes.table$ensembl_gene_id)] <- make.unique(genes.table$ensembl_gene_id[!is.na(genes.table$ensembl_gene_id)])
 
-rownames(genes.table) <- genes.table$unique_id
+#Select only the annotations that are not NA 
+keep <- (!(is.na(mus_ensembl)))
+genes <- mus_ensembl[keep]
 
-#merge ensembl name and gene ID
-dc.data.mus <- dc.data.mus[intersect(rownames(dc.data.mus), rownames(genes.table)), ]
-newnames <- genes.table[rownames(dc.data.mus), ]$unique_gene_name
+#get the names only
+extract <- names(mus_ensembl)[keep] 
+##remove duplicates
+#For ensIds
+extract <- as.vector(extract[!(duplicated(extract))])
+#For gene symbols
+genes <- as.vector(genes[!(duplicated(extract))])
 
-rownames(dc.data.mus) <- newnames
+#for the expression matrix
+nmat <- dc.data.mus[extract,]
+
+#give new column names with gene symbols
+rownames(nmat) <- make.unique(genes)
+
+nmat[1:5,1:5]
 
 ```
 
 Create the seurat object for analysis - set 2 markers for "mature" and "immature" cell types of BDMCs to get an impression of the proportions of these two types for each condition in the data-set. However I would like to use the mature/immature classification we have calculated - find a way to use this instead if comparing numbers 
 
-```{r, Create Seuratobject}
+```{r, Create Seuratobject, width = 10, height = 40}
 
 meta1 <- read.table("~/t.gondi_dc/data/meta/metadata-200430.csv", sep = ",", header = T, row.names = 1)
+meta_new <- read.table("~/t.gondi_dc/meta_141221.csv",sep = ";", header = T, row.names = 1)
 
-se.dc.mus <- CreateSeuratObject(dc.data.mus, min.cells = 3, min.features = 200, project = "DC-TG-FH-M", meta.data = meta1)
+se.dc.mus <- CreateSeuratObject(nmat, min.cells = 3, min.features = 200, project = "DC-TG-FH-M", meta.data = meta_new)
 
-se.dc.mus[["percent.mt"]] <- PercentageFeatureSet(se.dc.mus,pattern = "mt-")
+se.dc.mus[["percent.mt"]] <- PercentageFeatureSet(se.dc.mus,pattern = "mt")
 se.dc.mus[["percent.mature"]] <- PercentageFeatureSet(se.dc.mus, features = "mature")
 se.dc.mus[["percent.immature"]] <- PercentageFeatureSet(se.dc.mus, features= "immature")
 
 grayscale = c("gray5","gray15", "gray30", "gray55", "gray70", "gray85", "gray95", "gray100")
 
-VlnPlot(se.dc.mus, features = c("percent.mt","percent.mature", "percent.immature"), ncol = 2, group.by = "cell_class", cols = grayscale)
+VlnPlot(se.dc.mus, features = c("nCount_RNA","nFeature_RNA", "percent.mt", "nUMI_toxo"), ncol = 2, group.by = "cell_class", cols = grayscale)
 
 png("~/t.gondi_dc/res/figures/fig1/vln_toxo_all_Amol.png", width = 48, height = 16, units = "cm", res = 600)
 VlnPlot(se.toxo, features = c("TGME49-259020","TGME49-293690", "TGME49-201780", "TGME49-233460", "TGME49-255260", "TGME49-247020"), group.by = "cell_class", cols = c("gold4", "gold3", "gold2", "gold") , ncol = 3)
@@ -127,6 +200,8 @@ print(VlnPlot(se.dc.mus, features = c("nCount_RNA", "nFeature_RNA"), ncol = 2, g
 #dev.off()
 
 ```
+
+
 
 ```{r, boxplot for number of toxo-transcripts / condition}
 
@@ -176,18 +251,19 @@ DimPlot(se.dc.mus, reduction = "umap", group.by = "cell_class")
 
 
 saveRDS(se.dc.mus, "~/t.gondi_dc/res/seurat-objects/seurat-dc-2021-06-23")
+
+se.dc.mus <- readRDS("~/t.gondi_dc/res/seurat-objects/seurat-dc-2021-06-23")
 ```
 
 ```{r, compare ICA and PCA dim-reduction}
 
 se.dc.mus <- RunICA(se.dc.mus)
-se.dc.mus <- RunNMF(se.dc.mus)
-se.dc.mus <- FindNeighbors(se.dc.mus, dims = 1:15, reduction = "NMF", graph.name =  "snn_nmf")
+se.dc.mus <- FindNeighbors(se.dc.mus, dims = 1:15, reduction = "pca", graph.name =  "snn_nmf")
 se.dc.mus <- FindClusters(se.dc.mus, graph.name = "snn_nmf") #start with default resolution of 0.8
 #inspect the clusters
 head(Idents(se.dc.mus), 5)
 
-se.dc.mus <- RunUMAP(se.dc.mus, dims = 1:10, spread = 0.5, min.dist = 0.1,  reduction.name = "umap_nmf")
+se.dc.mus <- RunUMAP(se.dc.mus, dims = 1:10, spread = 0.5, min.dist = 0.1)
 DimPlot(se.dc.mus, group.by = "cell_class")
 DimPlot(se.dc.mus, group.by = "seurat_clusters")
 library(mclust)
@@ -1804,12 +1880,14 @@ We want to run an alternative way to compare DEG between conditions and/or timep
 
 dc.data <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
 
+
 #subset for only mouse genes: 
 mus.genes <- rownames(dc.data)[grep("ENSMUSG",rownames(dc.data))]
 
 head(mus.genes)
 dc.data.mus <- dc.data[mus.genes,]
 dc.data.mus[1:5,1:5]
+
 dc.data.mus <- round(dc.data.mus)
 names <- rownames(dc.data.mus)
 dc.data.mus <- cbind(names, dc.data.mus)
@@ -1825,7 +1903,7 @@ write.table(dc.data.mus, "~/Downloads/dc.data.mus.tsv", quote = F, sep = "\t", r
 
 meta_full  <- read.table("~/Downloads/meta.full.csv", sep = ";", header = T)
 
-meta_full$pathology[meta_full$=="LPS"] <- "LPS"
+meta_full$pathology[meta_full == "LPS"] <- "LPS"
 
 meta_full$pathology[meta_full$celltype %in% c("PTG_Lys3h", "LDM_Lys3h")] <- "Lysate"
 
@@ -2095,3 +2173,5 @@ meta_mcp <- data.frame(pathology = as.factor(ifelse(se.dc.mus@meta.data$cell_cla
                        cellQ = as.numeric(log10(se.dc.mus@meta.data$nFeature_SCT)))
 
 ```
+
+
