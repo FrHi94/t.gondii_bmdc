@@ -13,7 +13,8 @@ library("tidyverse")
 
 
 ```{r, import data}
-GSE134869 <- read.table("t.gondi_dc/data/GEO_comparions/GSE134869_SP7_umi_counts.tsv.gz", sep = "\t", row.names = 1, header = T) 
+
+GSE134869 <- read.table("~/t.gondi_dc/data/GEO_comparions/GSE134869_SP7_umi_counts.tsv.gz", sep = "\t", row.names = 1, header = T) 
 head(GSE134869)
 
 condition <- colnames(GSE134869)[1:64]
@@ -50,9 +51,9 @@ results(dds, contrast = c("condition", "PAM", "Ctrl"))
 
 ```
 
-The differential gene expression has now been performed for the entire set of genes so we would like to filter them further based on their base mean expression, their logFoldChange as well as their signficance (p-value). 
+The differential gene expression has now been performed for the entire set of genes so we would like to filter them further based on their base mean expression, their logFoldChange as well as their significance (p-value). 
 
-Conveniently the generate DE results function of this (vignette)[https://erilu.github.io/bulk-rnaseq-analysis/#Differential_expression_analysis], creates exactly that. 
+Conveniently the generate DE results function of this (vignette)[https://erilu.github.io/bulk-rnaseq-analysis/#Differential_expression_analysis], creates exactly that. I simply adjusted it to our needs as they needed to convert the Ensembl IDs to gene names and filtered the data further - e.g, to exclusively include protein coding genes. 
 
 ```{r, function: generate_DE_results}
 
@@ -104,8 +105,8 @@ generate_DE_results <- function (dds, comparisons, padjcutoff = 0.001, log2cutof
 
 ```{r, run the function}
 
-generate_DE_results(dds = dds, c("LPS", "Ctrl"))
-generate_DE_results(dds = dds, c("PAM", "Ctrl"))
+generate_DE_results(dds = dds, c("LPS", "Ctrl"), log2cutoff = 2)
+generate_DE_results(dds = dds, c("PAM", "Ctrl"), log2cutoff = 2)
 #load the results and inspect them: 
 res_LPS <- read.csv("~/t.gondi_dc/res/GEO_comparison/LPS_vs_Ctrl_padj_cutoff.csv", header = T)
 nrow(res_LPS)
@@ -114,9 +115,20 @@ res_PAM <- read.csv("~/t.gondi_dc/res/GEO_comparison/PAM_vs_Ctrl_padj_cutoff.csv
 nrow(res_PAM)
 head(res_PAM)
 
+#filter only genes that are upregulated in the LPS DEG
+res_LPS <- subset(res_LPS, res_LPS$log2FoldChange > 0)
+#get the vector with the gene names only
 genelist_LPS <- res_LPS$gene
-genelist_PAM <- res_PAM$gene
+genelist_LPS
+#export the data
+write.table(genelist_LPS ,"~/t.gondi_dc/res/GEO_comparison/LPS_pos_log2FC.tsv", sep = "\t", quote = F)
 
+#filter only genes that are upregulated in the PAM DEG
+genelist_PAM <- subset(res_PAM, res_PAM$log2FoldChange > 0 )
+#get the vector with the gene names only
+genelist_PAM <- res_PAM$gene
+#export the data 
+write.table(genelist_PAM, "~/t.gondi_dc/res/GEO_comparison/PAM_pos_log2FC.tsv", sep = "\t", quote = F)
 
 ```
 
