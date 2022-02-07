@@ -1,0 +1,124 @@
+---
+title: "GEO_bulk_DeSeq2"
+output: html_notebook
+---
+
+To use he data from the Toxoplasma project more as a ressource, we would like to include DGE data from bulk data and investigate the selected markers in our dataset.
+
+```{r, load libraries}
+library(stringr)
+library("DESeq2")
+library("tidyverse")
+```
+
+
+```{r, import data}
+GSE134869 <- read.table("t.gondi_dc/data/GEO_comparions/GSE134869_SP7_umi_counts.tsv.gz", sep = "\t", row.names = 1, header = T) 
+head(GSE134869)
+
+condition <- colnames(GSE134869)[1:64]
+condition <- as.data.frame(condition %>% str_replace("_rep1r", ""))
+
+condition <- rbind(condition, condition, condition)
+colnames(condition) <- "condition"
+rownames(condition) <- colnames(GSE134869)
+head(condition)
+
+```
+
+Create the DESeq2 object and run DESeq2 on the data which will perform a differential expression analysis based on a negative binomial distribution and will do the following: 
+
+1. estimation of size factors: estimateSizeFactors
+2. estimation of dispersion: estimateDispersions
+3. Negative Binomial GLM fitting and Wald statistics: nbinomWaldTest
+
+```{r, DEseq object}
+
+dds <- DESeqDataSetFromMatrix(countData = GSE134869,
+                              colData = condition,
+                              design = ~condition)
+dds <- DESeq(dds)
+dds
+
+```
+
+Now we can visuaize the results of the DGEA - The easiest would be to compare the DEG between each individual condition and the control - in our case we are not too interested in the treatment but rather the infection condition (PAM + LPS) CpGB, Zymosan, cGAMP, HMW and SeV refer to treatments if understood correctly 
+
+```{r, look at DEG results}
+
+results(dds, contrast = c("condition", "PAM", "Ctrl"))
+
+```
+
+The differential gene expression has now been performed for the entire set of genes so we would like to filter them further based on their base mean expression, their logFoldChange as well as their signficance (p-value). 
+
+Conveniently the generate DE results function of this (vignette)[https://erilu.github.io/bulk-rnaseq-analysis/#Differential_expression_analysis], creates exactly that. 
+
+```{r, function: generate_DE_results}
+
+generate_DE_results <- function (dds, comparisons, padjcutoff = 0.001, log2cutoff = 0.5, cpmcutoff = 2) {
+  # generate average counts per million metric from raw count data 
+  raw_counts <- counts(dds, normalized = F)
+  cpms <- enframe(rowMeans(edgeR::cpm(raw_counts)))
+  colnames(cpms) <- c("gene", "avg_cpm")
+  
+  # extract DESeq results between the comparisons indicated
+  res <- results(dds, contrast = c("condition", comparisons[1], comparisons[2]))[,-c(3,4)]
+  
+  # annotate the data with gene name and average counts per million value
+  res <- as_tibble(res, rownames = "gene")
+  # append the average cpm value to the results data
+  res <- left_join(res, cpms, by = c("gene" = "gene"))
+  
+  # combine normalized counts with entire DE list
+  normalized_counts <- round(counts(dds, normalized = TRUE),3)
+  pattern <- str_c(comparisons[1], "|", comparisons[2])
+  combined_data <- as_tibble(cbind(res, normalized_counts[,grep(pattern, colnames(normalized_counts))] ))
+  combined_data <- combined_data[order(combined_data$log2FoldChange, decreasing = T),]
+  
+  # generate sorted lists with the indicated cutoff values
+  res <- res[order(res$log2FoldChange, decreasing=TRUE ),]
+  de_genes_padj <- res[which(res$padj < padjcutoff),]
+  de_genes_log2f <- res[which(abs(res$log2FoldChange) > log2cutoff & res$padj < padjcutoff),]
+  de_genes_cpm <- res[which(res$avg_cpm > cpmcutoff & res$padj < padjcutoff),]
+  
+  # write output to files
+  write.csv (de_genes_padj, file = paste0(comparisons[1], "_vs_", comparisons[2], "_padj_cutoff.csv"), row.names =F)
+  write.csv (de_genes_log2f, file = paste0(comparisons[1], "_vs_", comparisons[2], "_log2f_cutoff.csv"), row.names =F)
+  write.csv (de_genes_cpm, file = paste0(comparisons[1], "_vs_", comparisons[2], "_cpm_cutoff.csv"), row.names =F)
+  write.csv (combined_data, file = paste0(comparisons[1], "_vs_", comparisons[2], "_allgenes.csv"), row.names =F)
+  
+  writeLines( paste0("For the comparison: ", comparisons[1], "_vs_", comparisons[2], ", out of ", nrow(combined_data), " genes, there were: \n", 
+               nrow(de_genes_padj), " genes below padj ", padjcutoff, "\n",
+               nrow(de_genes_log2f), " genes below padj ", padjcutoff, " and above a log2FoldChange of ", log2cutoff, "\n",
+               nrow(de_genes_cpm), " genes below padj ", padjcutoff, " and above an avg cpm of ", cpmcutoff, "\n",
+               "Gene lists ordered by log2fchange with the cutoffs above have been generated.") )
+  gene_count <- tibble (cutoff_parameter = c("padj", "log2fc", "avg_cpm" ), 
+                        cutoff_value = c(padjcutoff, log2cutoff, cpmcutoff), 
+                        signif_genes = c(nrow(de_genes_padj), nrow(de_genes_log2f), nrow(de_genes_cpm)))
+  invisible(gene_count)
+}
+
+
+```
+
+```{r, run the function}
+
+generate_DE_results(dds = dds, c("LPS", "Ctrl"))
+generate_DE_results(dds = dds, c("PAM", "Ctrl"))
+#load the results and inspect them: 
+res_LPS <- read.csv("~/t.gondi_dc/res/GEO_comparison/LPS_vs_Ctrl_padj_cutoff.csv", header = T)
+nrow(res_LPS)
+head(res_LPS)
+res_PAM <- read.csv("~/t.gondi_dc/res/GEO_comparison/PAM_vs_Ctrl_padj_cutoff.csv", header = T)
+nrow(res_PAM)
+head(res_PAM)
+
+genelist_LPS <- res_LPS$gene
+genelist_PAM <- res_PAM$gene
+
+
+```
+
+
+

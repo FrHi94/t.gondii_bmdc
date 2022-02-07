@@ -1090,7 +1090,7 @@ print(plot_grid(p1,p2,p3,p4, ncol = 2, nrow = 2))
 
 ```
 
-```{r, AddModuleScore based on maturity}
+```{r, AddModuleScore based on celltype}
 
 
 matdc <- c("Ccr7", "Ccl22", "Serpinb9", "Cd83")
@@ -1232,13 +1232,13 @@ infected_maturity_m_12h
 
 ```
 
-DCs and Macs specific signture 
+DCs and Macs specific signature 
 ```{r}
 Mac_sig <- c("Hacd4", "Tmem273", "Tlr4", "Fgd4", "Sqor", "Csf3r", "Plod1", "Tom1", "Pld3", "Tpp1", "Ctsd", "Lamp2", "Pla2g4a", "Fcgr1", "Mr1", "Mertk", "Cd14", "Tbxas1", "Fcgr3", "Spp1", "Cd164", "Tcn2", "Dok3", "Ctsl", "Tspan14")
 Dc_sig <- c("Adam19", "Ccr7", "Flt3", "Gpr132", "H2-Eb2", "Hmgn3", "Kit", "Klri1", "Kmo", "P2ry10", "Nectin1", "Rab30", "Slamf7", "Traf1", "Zbtb46", "Dpp4", "Runx3")
 ```
 
-LPS response in Macs Vs Dcs
+LPS response in Macs Vs DCs
 ```{r}
 lps_res_2 <- c("Rel", "Gnb4", "Ccr7", "Irf8", "Ccl22", "Tmem39a", "Cd83", "Zfp36l1", "Tnfsf4", "Ccnd2", "Stat2", "Calcrl", "Pml", "Irf9", "Irf7", "Ddx58", "Ifit1", "Ifih1", "Rsad2", "Mapkapk2", "Ccl3", "Plek", "Ifit3", "Inhba", "Mt2", "Cd14", "Clec4e", "Slc7a11", "Tnf", "Ikbke", "Cxcl2", "Ptx3", "Il1a", "Il6", "Il1b", "Cxcl10", "Ets2")
 ```
@@ -2004,6 +2004,54 @@ write.table(
   data.frame('gene'=rownames(counts_matrix)),file='~/t.gondi_dc/data/adata_create/gene_names.csv',
   quote=F,row.names=F,col.names=F
 )
+
+```
+
+```{r, add Average expression of gene sets of interest to the data}
+
+gene.set_LPS <- read.table("~/t.gondi_dc/res/GEO_comparison/LPS_pos_log2FC.tsv", sep = "\t", header = T)
+
+gene.set_LPS <- gene.set_LPS$x
+
+LPS_rows <- which(rownames(se.dc.mus@assays$RNA) %in% gene.set_LPS)
+
+# Get mean expression of genes of interest per cell
+mean.exp <- colMeans(x = se.dc.mus@assays$RNA[LPS_rows,], na.rm = TRUE)
+
+# Add mean expression values in 'object@meta.data$gene.set.score'
+if (all(names(x = mean.exp) == rownames(x = se.dc.mus@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+ se.dc.mus@meta.data$LPS_score <- mean.exp
+}
+
+
+# plot
+FeaturePlot(object = se.dc.mus, features = "LPS_score", cols = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(600))
+
+
+###Do the same for PAM specific expression 
+
+
+gene.set_PAM <- read.table("~/t.gondi_dc/res/GEO_comparison/PAM_pos_log2FC.tsv", sep = "\t", header = T)
+
+gene.set_PAM <- gene.set_PAM$x
+
+PAM_rows <- which(rownames(se.dc.mus@assays$RNA) %in% gene.set_PAM)
+
+# Get mean expression of genes of interest per cell
+mean.exp <- colMeans(x = se.dc.mus@assays$RNA[PAM_rows,], na.rm = TRUE)
+
+# Add mean expression values in 'object@meta.data$gene.set.score'
+if (all(names(x = mean.exp) == rownames(x = se.dc.mus@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+ se.dc.mus@meta.data$PAM_score <- mean.exp
+}
+
+# plot
+FeaturePlot(object = se.dc.mus, features = "PAM_score", cols = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(1000))
+
 
 ```
 
