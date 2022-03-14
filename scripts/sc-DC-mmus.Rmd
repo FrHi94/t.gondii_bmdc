@@ -153,10 +153,10 @@ extract <- as.vector(extract[!(duplicated(extract))])
 genes <- as.vector(genes[!(duplicated(extract))])
 
 #for the expression matrix
-nmat <- dc.data.mus[extract,]
+dc.data.mus <- dc.data.mus[extract,]
 
 #give new column names with gene symbols
-rownames(nmat) <- make.unique(genes)
+rownames(dc.data.mus) <- make.unique(genes)
 
 nmat[1:5,1:5]
 
@@ -199,8 +199,6 @@ print(VlnPlot(se.dc.mus, features = c("nCount_RNA", "nFeature_RNA"), ncol = 2, g
 #dev.off()
 
 ```
-
-
 
 ```{r, boxplot for number of toxo-transcripts / condition}
 
@@ -601,7 +599,7 @@ DimPlot(se.mac, reduction = "umap",group.by = "seurat_clusters")
 
 DimPlot(se.mac, reduction = "umap", group.by = "cell_class")
 
-saveRDS(se.dc, "~/t.gondi_dc/res/seurat-objects/dc-only.RDS")
+#saveRDS(se.dc, "~/t.gondi_dc/res/seurat-objects/dc-only.RDS")
 
 ```
 
@@ -1156,6 +1154,7 @@ FeaturePlot(se.dc.mus, features = "Ccr7")
 class_cell <- function(object, features, class_thrs, colname, firstclass, secondclass, seed = 1)
 # object = seurat object
 # modulescores = charactervector with names of modulescorecolumns 
+# class_thrs = how many 
 # colname = metadata column name for the classifications
 # firstclass = classification for cells fulfilling the criteria of the classification based on the input features
 # secondclass = classification of cells failing to fulfill the classification based on input features
@@ -1679,291 +1678,6 @@ markers.12h.def
 
 ```
 
-We want to run an alternative way to compare DEG between conditions and/or timepoints
-
-```{r, run differential gene expression analysis between conditions using DESeq2 (only mouse)}
-
-dc.data <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
-
-
-#subset for only mouse genes: 
-mus.genes <- rownames(dc.data)[grep("ENSMUSG",rownames(dc.data))]
-
-head(mus.genes)
-dc.data.mus <- dc.data[mus.genes,]
-dc.data.mus[1:5,1:5]
-
-dc.data.mus <- round(dc.data.mus)
-names <- rownames(dc.data.mus)
-dc.data.mus <- cbind(names, dc.data.mus)
-#make a more comprehensive metadatafile
-meta_full <- data.frame(id = colnames(se.dc.mus),sample = se.dc.mus$cell_class, condition = se.dc.mus$cell_class, celltype = se.dc.mus$celltype, pathology = se.dc.mus$pathology, timepoint = se.dc.mus$timepoint, toxo_nUMI_p = se.dc.mus$toxo_nUMI_p, strain = se.dc.mus$strain)
-rownames(meta_full) <- 1:nrow(meta_full)
-
-#subset count-data to match meta-data
-dc.data.mus <- dc.data.mus[colnames(dc.data.mus) %in% meta_full$id]
-
-write.table(meta_full, "~/Downloads/meta.full_1.csv", quote = F, sep = ";", row.names = F)
-write.table(dc.data.mus, "~/Downloads/dc.data.mus.tsv", quote = F, sep = "\t", row.names = rownames(dc.data.mus))
-
-meta_full  <- read.table("~/Downloads/meta.full.csv", sep = ";", header = T)
-
-meta_full$pathology[meta_full == "LPS"] <- "LPS"
-
-meta_full$pathology[meta_full$celltype %in% c("PTG_Lys3h", "LDM_Lys3h")] <- "Lysate"
-
-```
-
-```{r, construct DESEQDataSet Object}
-
-dds <- DESeqDataSetFromMatrix(countData= dc.data.mus, 
-                              colData= meta_full, 
-                              design= ~ timepoint + celltype, tidy = TRUE)
-
-dds
-
-dds <- DESeq(dds)
-
-res <- results(dds)
-head(results(dds, tidy=TRUE)) 
-summary(res)
-#sort by p-value
-res <- res[order(res$padj),]
-head(res)
-par(mfrow=c(2,3))
-plotCounts(dds, gene=rownames(res[1,]),intgroup="timepoint")
-plotCounts(dds, gene=rownames(res[2,]), intgroup="pathology")
-plotCounts(dds, gene=rownames(res[3,]), intgroup="pathology")
-plotCounts(dds, gene=rownames(res[4,]), intgroup="pathology")
-plotCounts(dds, gene=rownames(res[5,]), intgroup="pathology")
-plotCounts(dds, gene=rownames(res[6,]), intgroup="pathology")
-
-
-
-```
-
-
-
-We also want to  identify multicellular programs (MCPs) and investigate them further, potentially we would like to adjust them to work with dual-scSeq input. 
-
-```{r, multicelullar programs}
-
-devtools::install_github("livnatje/DIALOGUE")
-library(DIALOGUE)
-# Run a toy example
-rA<-readRDS(system.file("Data", "test.example.rds", package = "DIALOGUE"))
-
-```
-
-Format the the data as given in the rA example from https://www.biorxiv.org/content/10.1101/2020.08.11.245472v1
-
-```{r, Format data for MCP analysis}
-
-#GM-DC
-se.gmdc <- readRDS("~/t.gondi_dc/res/seurat-objects/dc-only.RDS")
-meta_mcp <- data.frame(pathology = as.factor(ifelse(se.gmdc@meta.data$cell_class %in% c("LDM_3h","LDM_12h","PTG_3h","PTG_12h"), paste("infected"), ifelse(se.gmdc@meta.data$cell_class %in% c("LPS"), paste("LPS"),paste("uninfected")))),
-                       cell_ID = as.factor(rownames(se.gmdc@meta.data)),
-                       timepoint = as.factor(ifelse(se.gmdc@meta.data$cell_class %in% c("control","LDM_Lys3h","PTG_Lys3h", "LPS"),paste(0),ifelse(se.gmdc@meta.data$cell_class %in% c("LDM_3h", "PTG_3h"), paste(3),paste(12)))), 
-                       p_toxo = as.numeric(se.gmdc@meta.data$toxo_nUMI_p), 
-                       phase = as.factor(se.gmdc@meta.data$Phase),
-                       sample = as.factor(se.gmdc@meta.data$cell_class), 
-                       strain = as.factor(ifelse(se.gmdc@meta.data$cell_class %in% c("LDM_3h", "LDM_Lys3h"), paste("LDM"), ifelse(se.gmdc@meta.data$cell_class %in% c("PTG_3h", "PTG_Lys3h"), paste("PTG"), paste("None")))),
-                       cellQ = as.numeric(log10(se.gmdc@meta.data$nFeature_SCT)))
-meta_mcp <- within(meta_mcp, timepoint[pathology=="uninfected"] <- paste(0))
-levels(meta_mcp$pathology) <- c(TRUE, FALSE)
-meta_mcp$pathology <- as.logical(meta_mcp$pathology)
-rownames(meta_mcp) <- meta_mcp$cell_class
-rownames(meta_mcp) <- meta_mcp$cell_class
-head(meta_mcp)
-
-mat.dc <- as.matrix(se.gmdc@assays$RNA@counts)
-names <- colnames(mat.dc)
-#set each condition as one sample and see what we get
-samples <- meta_mcp$sample
-
-DC <- make.cell.type(name = "GM-DC",tpm = mat.dc,samples = samples, X = mat.dc,metadata = meta_mcp)
-
-
-#GM-Mac
-se.gmmac <- readRDS("~/t.gondi_dc/res/seurat-objects/mac-only.RDS")
-meta_mcp <- data.frame(pathology = as.factor(ifelse(se.gmmac@meta.data$cell_class %in% c("LDM_3h","LDM_12h","PTG_3h","PTG_12h"), paste("infected"), paste("uninfected"))),
-                       cell_ID = as.factor(rownames(se.gmmac@meta.data)),
-                       timepoint = as.integer(ifelse(se.gmmac@meta.data$cell_class %in% c("LDM_3h", "PTG_3h"), paste(3),paste(12))), 
-                       p_toxo = as.numeric(se.gmmac@meta.data$toxo_nUMI_p), phase = as.factor(se.gmmac@meta.data$Phase),
-                       sample = as.factor(se.gmmac@meta.data$cell_class), 
-                       cellQ = as.numeric(log10(se.gmmac@meta.data$nFeature_SCT)))
-                      
-meta_mcp <- within(meta_mcp, timepoint[pathology=="uninfected"] <- paste(0))
-levels(meta_mcp$pathology) <- c(TRUE, FALSE)
-meta_mcp$pathology <- as.logical(meta_mcp$pathology)
-rownames(meta_mcp) <- meta_mcp$cell_class
-head(meta_mcp)
-mat.mac <- as.matrix(se.gmmac@assays$RNA@counts)
-names <- colnames(mat.mac)
-#set each condition as one sample and see what we get
-samples <- meta_mcp$sample
-MAC <- make.cell.type(name = "GM-Mac",tpm = mat.mac,samples = samples, X = mat.mac,metadata = meta_mcp)
-
-#make a celltype list
-
-rA <- list(DC, MAC)
-names(rA) <- c("GM-DC","GM-Mac")
-```
-
-```{r, run dialogue}
-
-R<-DIALOGUE.run(rA = rA, # list of cell.type objects
-                main = "My.data",
-                k = 3, # number of MCPs to identify
-                results.dir = "~/t.gondi_dc/res/", 
-                conf = c("cellQ"), # any potential confounders DIALOGUE needs to account for; default is "cellQ" 
-                pheno = "pathology")
-
-
-X<-lapply(rA, function(r){
-    X1<-average.mat.rows(r@X,r@samples,f = colMedians)
-    return(X1)
-  })
-  cell.types<-names(rA)
-  names(X)<-cell.types
-  n1<-length(cell.types)
-
-  # Finding shared samples
-  samples<-unlist(lapply(cell.types, function(x) rownames(X[[x]])))
-  samplesU<-get.abundant(samples,n1)
- f<-function(X1){
-    X1<-center.matrix(X[X1],dim = 2,sd.flag = T)
-    X1<-cap.mat(X[X1],cap = 0.01,MARGIN = 2)
-    X1<-X[X1][samplesU,]
-    return(X1)
-  }
-  X<-lapply(X, f)
-  k1<-ncol(X[1])
-
-  out<-DIALOGUE1.PMD(X = X,k = k,PMD2 = PMD2)
-
-
-```
-
-```{r, run LDA with only mouse genes}
-
-library(topicmodels)
-library(polmineR)
-library(tm)
-
-#create top5000 expressed genes (5000 genes with largest rowsums)
-
-exp <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
-       mus.genes <- rownames(exp)[grep("ENSMUSG",rownames(exp))]
-exp <- exp[mus.genes,]
-exp <- t(exp)
-
-exp <- t(se.dc.mus@assays$RNA@counts)
-exp <- colSums(exp)
-s <- sort(exp, decreasing = TRUE)
-top5000 <- names(s[1:5000])
-  
-  
-```
-
-```{r, run LDA for whole matrix (host and toxo)}
-
-library(topicmodels)
-library(polmineR)
-library(tm)
-
-#create top5000 expressed genes (5000 genes with largest rowsums)
-
-exp <- read.csv("~/t.gondi_dc/data/cnt/cnt_mus_toxo_raw.csv", row.names = 1, header = T, check.names = FALSE)
-       mus.genes <- rownames(exp)[grep("ENSMUSG",rownames(exp))]
-exp <- exp[mus.genes,]
-exp <- t(exp)
-
-exp <- as.matrix(se.dc@assays$RNA@counts)
-exp <- t(exp)
-s <- colSums(exp)
-s <- sort(s, decreasing = TRUE)
-top100 <- names(s[1:100])
-top5000[4990:5000]
-
-
-```
-
-
-```{r, run LDA}
-
-tdm <- as.TermDocumentMatrix(GetAssayData(subset(se.dc,features = top5000),
-                                          assay = "RNA"),
-                             weighting = "weightTf"
-                             )
-# get frequency weights
-tdm <- weightTf(tdm)
-
-# convert Term times Document to Document times Term Matrix
-# desired input to LDA function
-dtm <- as.DocumentTermMatrix(tdm)
-
-# run LDA with 10 topics 
-
-dtm$v <- as.integer(dtm$v)
-
-#Run LDA
-
-
-lda.res <- LDA(dtm,
-               k = 10)
-
-k= 1:10
-top.topic.l <- lapply(k, function(x){
- order(lda.res@beta[x,], decreasing = T)[1:20] 
-})
-names(top.topic.l) <- k
-
-top.2.genes <- lapply(top.topic.l,  function(x) {
-  data.frame(gene = lda.res@terms[x],
-  prob = exp(lda.res@beta[1,x]))
-})
-
-for(i in 1:10) {
-  top.2.genes[[i]]$topic <- i
-}
-
-top.2.genes <- do.call("rbind",top.2.genes)
-
-head(top.2.genes)
-
-```
-
-
-```{r, visualize the results}
-
-library(ggplot2)
-
-ggplot(top.2.genes[top.2.genes$topic == 6,], aes(gene, prob)) + 
-  geom_bar(stat = "identity") + 
-  coord_flip()
-
-```
-
-```{r, run gene co-expression network, scLink}
-
-library(scLink)
-
-count <- exp
-genes <- top100
-
-count.norm = sclink_norm(count, scale.factor = 1e6, filter.genes = FALSE, gene.names = genes)
-
-corr = sclink_cor(expr = count.norm, ncores = 1)
-
-corrplot::corrplot(corr =corr, method = "shade")
-
-networks = sclink_net(expr = count.norm, ncores = 1, lda = seq(0.5, 0.1, -0.05))
-
-net <- networks[[1]]
-
-```
-
 
 ```{r, make new metadata}
 
@@ -2007,41 +1721,86 @@ write.table(
 
 ```
 
-```{r, add Average expression of gene sets of interest to the data}
+We would like to compare the immune response of Toxoplasma infected DCs to the response induced by other well-established ligands for pathogen-sensing pathways. 
+
+1. LPS (lipopolysaccharide) > TLR4
+2. PAM (Pam3CSK4) > TLR2
+3. high molecular weight poly(I:C) (HMW) > TLR3/MDA-5
+4. CpG DNA type B (cpGB) > TLR9 
+5. Sendai virus (SeV) > RIG-I
+6. depleted zymosan (zymosan) > Dectin-1
+7. cyclic [G(3'-5')pA(3'-5')p] (cGAMP) > STING
+
+```{r, make gene lists}
 
 gene.set_LPS <- read.table("~/t.gondi_dc/res/GEO_comparison/LPS_pos_log2FC.tsv", sep = "\t", header = T)
-
 gene.set_LPS <- gene.set_LPS$x
+gene.set_LPS <- subset(gene.set_LPS, gene.set_LPS %in% rownames(se.dc.mus))
+
+gene.set_PAM <- read.table("~/t.gondi_dc/res/GEO_comparison/PAM_pos_log2FC.tsv", sep = "\t", header = T)
+gene.set_PAM <- gene.set_PAM$x
+gene.set_PAM <- subset(gene.set_PAM, gene.set_PAM %in% rownames(se.dc.mus@assays$RNA))
+
+gene.set_HMW <- read.table("~/t.gondi_dc/res/GEO_comparison/HMW_pos_log2FC.tsv", sep = "\t", header = T)
+gene.set_HMW <- gene.set_HMW$x
+gene.set_HMW <- subset(gene.set_HMW, gene.set_HMW %in% rownames(se.dc.mus@assays$RNA))
+
+gene.set_Sev <- read.table("~/t.gondi_dc/res/GEO_comparison/SeV_pos_log2FC.tsv", sep = "\t", header = T)
+gene.set_Sev <- gene.set_Sev$x
+gene.set_Sev <- subset(gene.set_Sev, gene.set_Sev %in% rownames(se.dc.mus@assays$RNA))
+
+gene.set_cGAMP <- read.table("~/t.gondi_dc/res/GEO_comparison/cGAMP_pos_log2FC.tsv", sep = "\t", header = T)
+gene.set_cGAMP <- gene.set_cGAMP$x
+gene.set_cGAMP <- subset(gene.set_cGAMP, gene.set_cGAMP %in% rownames(se.dc.mus@assays$RNA))
+
+gene.set_cpGB <- read.table("~/t.gondi_dc/res/GEO_comparison/cpGB_pos_log2FC.tsv", sep = "\t", header = T)
+gene.set_cpGB <- gene.set_cpGB$x
+gene.set_cpGB <- subset(gene.set_cpGB, gene.set_cpGB %in% rownames(se.dc.mus@assays$RNA))
+
+gene.set_zymosan <- read.table("~/t.gondi_dc/res/GEO_comparison/Zymosan_pos_log2FC.tsv", sep = "\t", header = T)
+gene.set_zymosan <- gene.set_zymosan$x
+gene.set_zymosan <- subset(gene.set_zymosan, gene.set_zymosan %in% rownames(se.dc.mus@assays$RNA))
+
+
+```
+
+```{r, extract unique genes for each condition, including infections}
+
+Sev_unique <- setdiff(gene.set_Sev, c(gene.set_cGAMP,gene.set_cpGB, gene.set_LPS, gene.set_HMW, gene.set_zymosan, gene.set_PAM))
+zymosan_unique <- setdiff(gene.set_zymosan, c(gene.set_cGAMP,gene.set_cpGB, gene.set_LPS, gene.set_HMW, gene.set_Sev, gene.set_PAM))
+cGAMP_unique <- setdiff(gene.set_cGAMP, c(gene.set_zymosan,gene.set_cpGB, gene.set_LPS, gene.set_HMW, gene.set_Sev, gene.set_PAM))
+LPS_unique <- setdiff(gene.set_LPS, c(gene.set_zymosan,gene.set_cpGB, gene.set_cGAMP, gene.set_HMW, gene.set_Sev, gene.set_PAM))
+HMW_unique <- setdiff(gene.set_HMW, c(gene.set_zymosan,gene.set_cpGB, gene.set_cGAMP, LPS_unique, gene.set_Sev, gene.set_PAM))
+Pam_unique <- setdiff(gene.set_PAM, c(gene.set_zymosan,gene.set_cpGB, gene.set_cGAMP, LPS_unique, gene.set_Sev, gene.set_HMW))
+cpGB_unique <- setdiff(gene.set_cpGB, c(gene.set_zymosan,gene.set_PAM, gene.set_cGAMP, LPS_unique, gene.set_Sev, gene.set_PAM))
+
+```
+
+```{r, add Average expression of gene sets of interest to the data }
 
 LPS_rows <- which(rownames(se.dc.mus@assays$RNA) %in% gene.set_LPS)
-
 # Get mean expression of genes of interest per cell
 mean.exp <- colMeans(x = se.dc.mus@assays$RNA[LPS_rows,], na.rm = TRUE)
-
 # Add mean expression values in 'object@meta.data$gene.set.score'
 if (all(names(x = mean.exp) == rownames(x = se.dc.mus@meta.data))) {
   cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
       "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
  se.dc.mus@meta.data$LPS_score <- mean.exp
 }
-
-
 # plot
 png("~/t.gondi_dc/res/GEO_comparison/LPS_score_UMAP.png", width = 15, height = 10, units = "cm", res = 600)
 FeaturePlot(object = se.dc.mus, 
-            features = "LPS_score",
-            cols = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(600)) +
+            features = "LPS_score", pt.size = 2) +
                               theme(axis.ticks = element_blank(),
                               axis.text = element_blank(), 
-                              axis.title = element_blank())
+                              axis.title = element_blank()) + 
+scale_color_gradientn("mean expression", colors = c("darkblue", "mediumblue", "yellow3", "yellow2", "yellow1", "yellow"))
 dev.off()
 
+```
+
+```{r, PAM}
 ###Do the same for PAM specific expression 
-
-
-gene.set_PAM <- read.table("~/t.gondi_dc/res/GEO_comparison/PAM_pos_log2FC.tsv", sep = "\t", header = T)
-
-gene.set_PAM <- gene.set_PAM$x
 
 PAM_rows <- which(rownames(se.dc.mus@assays$RNA) %in% gene.set_PAM)
 
@@ -2058,14 +1817,563 @@ if (all(names(x = mean.exp) == rownames(x = se.dc.mus@meta.data))) {
 # plot
 png("~/t.gondi_dc/res/GEO_comparison/PAM_score_UMAP.png", width = 15, height = 10, units = "cm", res = 600)
 FeaturePlot(object = se.dc.mus, 
-            features = "PAM_score", 
-            cols = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(1000))+
-                              theme(axis.ticks = element_blank(),
+            features = "PAM_score", pt.size = 2) +
+              theme(axis.ticks = element_blank(),
                               axis.text = element_blank(), 
-                              axis.title = element_blank())
+                              axis.title = element_blank(), 
+                    legend.position = "right") +
+               scale_color_gradientn("mean expression", colors = c("darkblue", "mediumblue", "yellow3", "yellow2","yellow1", "yellow")) 
+  
 dev.off()
 
 
 ```
+Gene set expression across conditions (averaged over cells) can also be visualized in a heatmap
+```{r, visualize gene sets in heatmap}
+
+gene_data <- data.frame(t(as.matrix(se.dc.mus@assays$RNA@data)),cluster= se.dc.mus$cell_class_type,check.names = F)
+#average data over clusters 
+average_data <- aggregate(.~cluster, gene_data, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+#create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+#plot genes of interest 
+
+#change column-order to have the same for all the plots 
+colorder <- c("ctrl_GM-DC", "PTG_Lys3h_GM-DC" , "PTG_3h_GM-DC", "PTG_12h_GM-DC", "LDM_Lys3h_GM-DC", "LDM_3h_GM-DC" , "LDM_12h_GM-DC", "LPS_GM-DC", "ctrl_GM-Mac", "PTG_Lys3h_GM-Mac" , "PTG_3h_GM-Mac", "PTG_12h_GM-Mac", "LDM_Lys3h_GM-Mac", "LDM_3h_GM-Mac" , "LDM_12h_GM-Mac", "LPS_GM-Mac")
+
+phmat1 <- phmat1[,colorder]
+
+#make annotation_col
+
+annotation_col <- data.frame(CellType = factor(rep(c("GM-DC", "GM-Mac"), each = 8)))
+rownames(annotation_col) <-colnames(phmat1)
+#add celltypes to the data in a complexheatmap
+annotation_col$Strain <- paste(c("Control", "PTG", "PTG", "PTG", "LDM", "LDM", "LDM", "LPS", "Control", "PTG", "PTG", "PTG", "LDM", "LDM", "LDM", "LPS"))
+annotation_col$Time <- as.integer(paste(c(3,3,3,12,3, 3, 12, 3, 3, 3, 3, 12, 3, 3,12, 3)))
+
+#create dataframe with colors 
+ann_cols <- list(CellType = c("GM-DC" = "mediumorchid4", "GM-Mac" = "turquoise4"), Strain = c("PTG" = "darkorange3", "LDM" = "blue3", "Control" = "forestgreen", "LPS" = "red3"), Time = c("gray20", "gray87"))
+
+```
+
+
+```{r, heatmap function}
+
+#data refers to a sc expression matrix you want to perform the analysis on 
+#meta refers to the data you want to group your data by (e.g. clusters, celltypes, etc.)
+#cond refers to the conditions you would like to display in the heatmap (numbers 1:16) (default is all conditions)
+#seed refers to the features you would like to include (charactervector of genes to display)
+#ann refers to the annotations you would like to have displayed in the heatmap  (default is all 3 annotations)
+
+mat <- t(as.matrix(se.dc.mus@assays$RNA@data))
+colorder <- c("ctrl_GM-DC", "PTG_Lys3h_GM-DC" , "PTG_3h_GM-DC", "PTG_12h_GM-DC", "LDM_Lys3h_GM-DC", "LDM_3h_GM-DC" , "LDM_12h_GM-DC", "LPS_GM-DC", "ctrl_GM-Mac", "PTG_Lys3h_GM-Mac" , "PTG_3h_GM-Mac", "PTG_12h_GM-Mac", "LDM_Lys3h_GM-Mac", "LDM_3h_GM-Mac" , "LDM_12h_GM-Mac", "LPS_GM-Mac")
+ann_cols <- list(CellType = c("GM-DC" = "mediumorchid4", "GM-Mac" = "turquoise4"), Strain = c("PTG" = "darkorange3", "LDM" = "blue3", "Control" = "forestgreen", "LPS" = "red3"), Time = c("gray20", "gray87"))
+
+
+hmat_mousetoxo <- function(data,meta,cond = 1:16 , seed, ann = 1:3) {
+
+  gene_data <- data.frame(data , cluster = meta ,check.names = F)  
+  average_data <- aggregate(.~cluster, gene_data, mean)
+  cluster_name <- average_data[,1]
+  average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+  rownames(average_data) <- cluster_name #you can also give your data individual cluster names 
+  average_data <- t(average_data)
+  phmat1 <- t(scale(t(average_data)))
+  #create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
+  phmat1[phmat1> 1.5] <- 1.5
+  phmat1[phmat1 < -1.5] <- -1.5
+  #plot genes of interest 
+  phmat1 <- phmat1[,colorder] #insert if statement here to order the columns as you would like 
+
+pheatmap(phmat1[seed,cond], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+  
+}
+
+hmat_mousetoxo(data = mat,
+               meta = se.dc.mus$cell_class_type, 
+               seed = Pam_unique,
+               cond = 1:8,
+               ann = 1)
+
+```
+
+```{r, print heatmaps}
+
+PAM_heatmap <- pheatmap(phmat1[Pam_unique,1:3], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+
+LPS_heatmap <- pheatmap(phmat1[LPS_unique,],fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+#HMW_heatmap <- pheatmap(phmat1[HMW_unique,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200), angle_col = "45")
+#no unique genes for HMW
+
+Sev_heatmap <- pheatmap(phmat1[Sev_unique,],fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+cGAMP_heatmap <- pheatmap(phmat1[cGAMP_unique,], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+cpGB_heatmap <- pheatmap(phmat1[cpGB_unique,], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+zymosan_heatmap <- pheatmap(phmat1[zymosan_unique,], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+
+png("~/t.gondi_dc/res/GEO_comparison/cpGB_score_heatmap_unique.png", width = 30, height = 40, units = "cm", res = 600)
+cpGB_heatmap
+dev.off()
+
+png("~/t.gondi_dc/res/GEO_comparison/LPS_score_heatmap_all.png", width = 50, height = 0, units = "cm", res = 600)
+LPS_heatmap
+dev.off()
+
+
+PAM_heatmap
+LPS_heatmap
+
+
+```
+
+```{r, visualize cell type analysis in heatmap}
+
+#visualize expression across cells and averaged expression to validate cell type annotations 
+
+dc_lps <- read.table("~/t.gondi_dc/data/GEO_comparions/Top_DEG_DC_LPS_GSE62746.tsv", header = T, sep = "\t")$gene_symbol
+dc_genes <- read.table("~/t.gondi_dc/data/GEO_comparions/Top_DEG_DC_GSE62361.tsv", header = T, sep = "\t")$gene_symbol
+dc_genes <- dc_genes[!duplicated(dc_genes)]
+mac_lps <- read.table("~/t.gondi_dc/data/GEO_comparions/Top_DEG_MAC_LPS_GSE62746.tsv", header = T, sep = "\t")$gene_symbol
+mac_genes <- read.table("~/t.gondi_dc/data/GEO_comparions/Top_DEG_MAC_GSE62361.tsv", header = T, sep = "\t")$gene_symbol
+mac_genes <- mac_genes[!duplicated(mac_genes)]
+#Visualize in heatmap
+pheatmap(phmat1[c(dc_genes, dc_lps, mac_lps, mac_genes),c(1:8)], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+dc.phmat <- pheatmap(phmat1[dc_genes,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+mac.phmat <- pheatmap(phmat1[mac_genes,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
+           annotation_col = annotation_col, annotation_colors = ann_cols, 
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45")
+
+
+top.mac <- DoHeatmap(se.dc.mus, features = mac_genes, group.colors = c("GM-DC" = "mediumorchid4", "GM-Mac" = "turquoise4"), group.by = "celltype") + 
+          theme(legend.position = "none")
+top.mac
+top.dc <- DoHeatmap(se.dc.mus, features = dc_genes, group.colors = c("GM-DC" = "mediumorchid4", "GM-Mac" = "turquoise4"), group.by = "celltype")
+top.dc
+
+png(filename = "~/t.gondi_dc/res/figures/comparison_phmat_averg_mac.png", width = 30, height = 25, units = "cm", res = 300)
+print(mac.phmat)
+dev.off()
+
+```
+
+```{r, visualize gene sets in heatmap for seperate cell types}
+
+gene_data_1 <- data.frame(t(as.matrix(se.dc@assays$RNA@data)),cluster= se.dc$cell_class,check.names = F)
+#average data over clusters 
+average_data <- aggregate(.~cluster, gene_data_1, mean)
+cluster_name <- average_data[,1]
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat1 <- t(scale(t(average_data)))
+#create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
+phmat1[phmat1> 1.5] <- 1.5
+phmat1[phmat1 < -1.5] <- -1.5
+#plot genes of interest 
+
+dc_PAM_heatmap  <- pheatmap(phmat1[gene.set_PAM,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+gene.set_LPS_dc <- subset(gene.set_LPS, gene.set_LPS %in% rownames(se.dc))
+dc_LPS_heatmap <- pheatmap(phmat1[gene.set_LPS_dc,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+#export
+png("~/t.gondi_dc/res/GEO_comparison/PAM_score_heatmap_dc.png", width = 50, height = 40, units = "cm", res = 600)
+dc_PAM_heatmap 
+dev.off()
+
+png("~/t.gondi_dc/res/GEO_comparison/LPS_score_heatmap_dc.png", width = 50, height = 40, units = "cm", res = 600)
+dc_LPS_heatmap
+dev.off()
+
+##Run for MACs
+
+gene_data_2 <- data.frame(t(as.matrix(se.mac@assays$RNA@data)),cluster= se.mac$cell_class,check.names = F)
+#average data over clusters 
+average_data <- aggregate(.~cluster, gene_data_2, mean)
+cluster_name <- average_data[,1] 
+average_data <- apply(average_data[,2:ncol(average_data)],2,as.numeric)
+rownames(average_data) <- cluster_name
+average_data <- t(average_data)
+phmat2 <- t(scale(t(average_data)))
+#create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
+phmat2[phmat2> 1.5] <- 1.5
+phmat2[phmat2 < -1.5] <- -1.5
+#plot genes of interest 
+
+PAM_heatmap_mac <- pheatmap(phmat2[gene.set_PAM,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+gene.set_LPS_mac <- subset(gene.set_LPS, gene.set_LPS %in% rownames(se.mac))
+LPS_heatmap_mac <- pheatmap(phmat2[gene.set_LPS_mac,], fontsize_row = 4, cellwidth = 15, clustering_distance_rows = "correlation", cluster_cols = F, color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200))
+
+#export
+png("~/t.gondi_dc/res/GEO_comparison/PAM_score_heatmap_mac.png", width = 50, height = 40, units = "cm", res = 600)
+print(PAM_heatmap_mac)
+dev.off()
+
+png("~/t.gondi_dc/res/GEO_comparison/LPS_score_heatmap_mac.png", width = 50, height = 40, units = "cm", res = 600)
+LPS_heatmap_mac
+dev.off()
+
+```
+
+```{r, compare data}
+
+
+#identify differential expressed genes for each original condition 
+LDM_12h_markers <- subset(cellclass.markers, cellclass.markers$cluster == "LDM_12h")
+LDM_12h_markers <- subset(LDM_12h_markers$gene, LDM_12h_markers$avg_log2FC > 1 &LDM_12h_markers$p_val_adj < 0.05)
+LDM_3h_markers <- subset(cellclass.markers, cellclass.markers$cluster == "LDM_3h")
+LDM_3h_markers <- subset(LDM_3h_markers$gene, LDM_3h_markers$avg_log2FC > 0.5 &LDM_3h_markers$p_val_adj < 0.05)
+
+LDM_3h_lys_markers <- subset(cellclass.markers$gene, cellclass.markers$cluster == "LDM_Lys3h")
+
+
+PTG_12h_markers <- subset(cellclass.markers, cellclass.markers$cluster == "PTG_12h")
+PTG_12h_markers <- subset(PTG_12h_markers$gene, PTG_12h_markers$avg_log2FC > 1 & PTG_12h_markers$p_val_adj < 0.05)
+PTG_3h_markers <- subset(cellclass.markers, cellclass.markers$cluster == "PTG_3h")
+PTG_3h_markers <- subset(PTG_3h_markers$gene, PTG_3h_markers$avg_log2FC > 1 & PTG_3h_markers$p_val_adj < 0.05)
+PTG_3h_lys_markers <- subset(cellclass.markers$gene, cellclass.markers$cluster == "PTG_Lys3h")
+
+
+#Look at intersection differential expressed genes 
+
+#make list for each toxo-condition and plot them in a table 
+prr_list <- list(gene.set_LPS, gene.set_PAM, gene.set_cpGB, gene.set_HMW, gene.set_cGAMP, gene.set_Sev, gene.set_zymosan)
+prr_unique <- list(LPS_unique, Pam_unique, cpGB_unique, HMW_unique, cGAMP_unique, Sev_unique, zymosan_unique)
+
+PTG_12h_int <- set_names(sapply(prr_unique, function(x){
+  intersect(PTG_12h_markers, x)
+}), nm = c("LPS", "prr", "cpGB", "HMW", "cGAMP", "SeV", "Zymosan"))
+
+PTG_3h_int <- set_names(sapply(prr_unique, function(x){
+  intersect(PTG_3h_markers, x)
+}), nm = c("LPS", "prr", "cpGB", "HMW", "cGAMP", "SeV", "Zymosan"))
+
+LDM_12h_int <- set_names(sapply(prr_unique, function(x){
+  intersect(LDM_12h_markers, x)
+}), nm = c("LPS", "prr", "cpGB", "HMW", "cGAMP", "SeV", "Zymosan"))
+
+LDM_3h_int <- set_names(sapply(prr_unique, function(x){
+  intersect(LDM_3h_markers, x)
+}), nm = c("LPS", "prr", "cpGB", "HMW", "cGAMP", "SeV", "Zymosan"))
+
+
+PTG_12h_int
+PTG_3h_int
+LDM_12h_int
+LDM_3h_int
+
+overlap <- data.frame(PTG_3h = sapply(PTG_3h_int, function(x){length(x)}), PTG_12h = sapply(PTG_12h_int, function(x){length(x)}), LDM_3h = sapply(LDM_3h_int, function(x){length(x)}), LDM_12h = sapply(LDM_12h_int, function(x){length(x)}) )
+
+overlap$PRR <- rownames(overlap)
+overlap <- gather(overlap, "condition", value = "nGenes", 1:4)
+overlap
+
+
+update_geom_defaults("point",list(size=3))
+
+ggplot(overlap, aes(PRR, nGenes, color = condition)) + 
+  geom_point(position = position_dodge(width=0.3), na.rm = T) +
+  scale_color_manual(values = cell.cols[c(2,3,6,7)]) + 
+  theme_classic() 
+  
+```
+Write a function to look at gene expressions of different gene sets of interest in a heatmap. 
+
+In the function you should define: 
+1. gene-set of interest
+2. 
+
+We also would like to run an co-expression network 
+
+```{r, load libraries, load and match data}
+
+#load package
+library(WGCNA)
+
+#get preprocessed mouse matrix
+M_mouse <- as.data.frame(se.dc.mus@assays$SCT@counts)
+ncol(M_mouse)
+#get pre-processed toxo matrix
+se.toxo <- readRDS("~/t.gondi_dc/res/seurat-objects/toxo.object_150721.RDS")
+M_toxo <- as.data.frame(se.toxo@assays$SCT@counts)
+ncol(M_toxo)
+#Filter columns of mouse data to only have columns containing toxo genes 
+
+M_mouse <- dplyr::select(M_mouse, matches(colnames(M_toxo)))
+ncol(M_mouse)
+
+M_toxo <- as.matrix(dplyr::select(M_toxo, matches(colnames(M_mouse))))
+ncol(M_toxo)
+
+M_mouse <- as.matrix(M_mouse)
+
+```
+
+```{r, create correlation matrix}
+
+set.seed(3)
+corM = bicor(t(M_toxo),t(M_mouse))
+corM[1:5,1:5]
+
+hist(corM)
+
+```
+
+So we first find the top correlated interactors for each gene, and we’re only looking for interactions between moue and toxo.
+We also only save 20 interactors for each gene - it’s unlikely anyone creates KNN graphs with a higher K. If they do there are much better tools than KNN graphs.
+
+```{r, interactor defintion}
+
+TopIntGenes_mouse = matrix(rownames(M_toxo)[apply(FUN=order, X=corM, MARGIN=2, decreasing=T, na.last=T)[1:20,]],nrow=20)
+TopIntGenes_toxo = matrix(rownames(M_mouse)[apply(FUN=order, X=corM, MARGIN=1, decreasing=T, na.last=T)[1:20,]],nrow=20)
+colnames(TopIntGenes_mouse) = rownames(M_mouse)
+colnames(TopIntGenes_toxo) = rownames(M_toxo)
+
+```
+
+
+```{r, correlation values}
+
+TopIntVal_mouse = matrix(ncol=ncol(TopIntGenes_mouse),nrow=nrow(TopIntGenes_mouse))
+for(ii in 1:ncol(TopIntVal_mouse)){TopIntVal_mouse[,ii] = corM[TopIntGenes_mouse[,ii],ii]}
+
+TopIntVal_toxo = matrix(ncol=ncol(TopIntGenes_toxo),nrow=nrow(TopIntGenes_toxo))
+for(ii in 1:ncol(TopIntVal_toxo)){TopIntVal_toxo[,ii] = corM[ii,TopIntGenes_toxo[,ii]]}
+
+#combine matrices
+
+TopIntGenes = cbind(TopIntGenes_mouse, TopIntGenes_toxo)
+TopIntVal = cbind(TopIntVal_mouse, TopIntVal_toxo)
+colnames(TopIntVal) = colnames(TopIntGenes)
+
+
+```
+
+For the resource, we have now pre-calculated all the objects we need. The rest will be performed in real time based on user input.
+
+The user will select the following parameters:
+seed = the seed genes we build networks from
+K = number of nearest neighbors
+Nsteps = Number of steps we take from the seed genes.
+cutoffValue = the hard cutoff value
+
+```{r, create function for plotting, fig.width = 18, fig.height = 15}
+
+library(igraph)
+
+
+f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65){
+
+# We first filter down the Top Interactors tables to the chosen number of interactors.
+TopIntGenes2 = TopIntGenes[1:K,]
+TopIntVal2 = TopIntVal[1:K,]
+
+# We then remove interactors with a weight below 0.65.
+if(cutoffValue<0){cutoffValue = 0; print("Warning: CutoffValue forced to 0!")}
+x.remove = abs(TopIntVal2) < cutoffValue
+TopIntGenes3 = TopIntGenes2; TopIntGenes3[x.remove] = NA
+TopIntVal3 = TopIntVal2; TopIntVal3[x.remove] = NA
+
+# Now we pick out the nearest neighbors, Nsteps steps away.
+seed2 = seed
+if(Nsteps>1){for(ii in 1:(Nsteps-1)){
+  seed2 = c(seed2,TopIntGenes3[,seed2])
+  seed2 = unique(seed2[!is.na(seed2)])
+}}
+TopIntGenes4 = TopIntGenes3[,seed2]
+TopIntVal4 = TopIntVal3[,seed2]
+
+# These objects are now transformed to an edgelist:
+keep.x = !is.na(as.vector(TopIntGenes4))
+elist1 = rep(colnames(TopIntGenes4), each=nrow(TopIntGenes4))[keep.x]
+elist2 = as.vector(TopIntGenes4)[keep.x]
+weights = as.vector(TopIntVal4)[keep.x]
+
+# There may be different fancy packages to create interactive plots, but I will use a 
+# straightforward solution: igraph
+
+gr.x = graph.data.frame(cbind(elist1,elist2), directed = T)
+
+# You can plot this graph, but it doesn't look very good. There are many things we can do to improve it. 
+V(gr.x)$label.family = "sans"
+V(gr.x)$label.cex = c(0.7)
+V(gr.x)$label.font = c(2)
+V(gr.x)$label.color = c("#333333")
+#V(gr.x)$label.dist = c(-0.5)
+#V(gr.x)$label.degree = pi/6
+E(gr.x)$arrow.size = 0.5
+E(gr.x)$width = abs(weights)*2
+V(gr.x)$name = make.names(V(gr.x)$name)
+#V(gr.x)$color[V(gr.x)$name %in% make.names(PTG_12h_markers)] = "#66CCFF"
+#V(gr.x)$color[V(gr.x)$name %in% make.names(LDM_12h_markers)] = "yellow3"
+V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "#66CCFF"
+V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "yellow3"
+V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "#3399CC"
+V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "yellow4"
+#V(gr.x)$shape[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "circle"
+#V(gr.x)$shape[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "circle"
+
+# We set the vertex sizes according to (minimum) distance from seed genes
+dist.x = distances(gr.x)
+for(ii in 1:ncol(dist.x)){dist.x[ii,ii] = NA}
+dist.x = dist.x[rownames(dist.x)%in%seed,]
+dist.x2 = apply(FUN=min, X=dist.x, MARGIN=2,na.rm=T)
+V(gr.x)$size = 2+10*(2^-dist.x2[V(gr.x)$name])
+
+
+# Color for interactions with positive correlations is set to red. 
+# Negative, if such exist, are colored blue.
+E(gr.x)$color[weights>0] = "#CC3333"
+E(gr.x)$color[weights<0] = "blue"
+
+# We can also map information to colors and shape of vertices.
+# There are two obvious options: 
+# 1) Different shapes for mouse and toxo, node colors according to a selected cluster from the umap.
+# 2) Make each node a pie chart with one piece for each cluster. Then distinction between mouse
+#    and toxo will have to be made some other way.
+#
+# I will leave this choice to a future discussion. For now, here is a simple function to translate
+# numeric values into a color scale, like a typical heatmap.
+
+f.TranslateToColor = function(val){
+  bins.x = seq(from=-max(abs(val),na.rm=T)-0.01, to=max(abs(val),na.rm=T)+0.01, length.out=101)
+  cval = c()
+  for(ii in 1:length(val)){cval[ii] = sum(bins.x<val[ii])}
+  cvec = colorRampPalette(c("blue", "dodgerblue", "white", "orange", "red"))(100)[cval]
+  if(is.matrix(val)){
+    cvec = matrix(cvec,nrow=nrow(val))
+    rownames(cvec) = rownames(val)
+    colnames(cvec) = colnames(val)
+  } else {
+    names(cvec) = names(val)
+  }
+  return(cvec)
+}
+par(mar=c(0,0,0,0)+.1)
+plot(gr.x, asp = 0) 
+return(gr.x)
+
+
+}
+
+
+gr.1 <- f.KNN_mousetoxo(c(PTG_12h_markers,LDM_12h_markers), cutoffValue = 0.5, Nsteps = 2)
+
+
+```
+
+```{r, run subgraph of graph in new function}
+
+
+#gr = graphobject
+#goi = gene of interest
+
+subgraph_mtoxo = function(gr, goi){
+mem.x = clusters(gr)$membership
+index.x = mem.x[V(gr)$name == goi]
+gr.x2 = induced_subgraph(gr, which(mem.x==index.x))
+par(mar=c(0,0,0,0)+.1)
+plot(gr.x2, asp = 0) 
+return(gr.x2)
+}
+
+subgraph_mtoxo(gr = gr.1, goi = "TGME49.278090")
+
+```
+
+```{r, make table for toxo and mouse genes from interaction graph}
+
+go.table.tg$ensembl_gene_id <- gsub("_", ".",go.table.tg$ensembl_gene_id)
+#gr = graph
+#ann = annotation table - default is the BioMart table used for annotations 
+get.toxo.table <- function(gr, ann = go.table.tg){
+inf <- data.frame(clusters(gr)$membership)
+colnames(inf) <- c("interaction_cluster")
+inf$ensembl_gene_id <- rownames(inf)
+int.table <- ann[ann$ensembl_gene_id %in% rownames(inf),]
+tg.int <- dplyr::left_join(int.table,inf, by = "ensembl_gene_id")
+return(tg.int)
+}
+
+tab1 <- get.toxo.table(gr.1)
+
+write.table(tab1, "~/t.gondi_dc/res/interaction_table_toxo.csv", sep = ";", quote = F, row.names = F)
+
+##Do the same for mouse genes
+
+get.mouse.table <- function(gr, ann = go.table){
+inf <- data.frame(clusters(gr)$membership)
+colnames(inf) <- c("interaction_cluster")
+inf$gene_symbol <- rownames(inf)
+int.table <- ann[ann$gene_symbol %in% rownames(inf),]
+mouse.int <- dplyr::left_join(int.table,inf, by = "gene_symbol")
+return(mouse.int)
+}
+
+tab <- get.mouse.table(gr.1)
+
+write.table(tab, "~/t.gondi_dc/res/interaction_table_mus.csv", sep = "\t", quote = F, row.names = F)
+#gprofiler - enrichment
+
+mouse.int.list <- names(clusters(gr.1)$membership[V(gr.1)$name %in% make.names(colnames(TopIntGenes_mouse))])
+mus.int <- gost(mouse.int.list, organism = "mmusculus", sources = "GO:BP")
+
+  print(ggplot(head(mus.int$result), aes(reorder(term_name, -log10(p_value)), -log10(p_value))) +
+  geom_bar(stat = "identity", color = "black", fill = "darkblue") +
+  coord_flip() +
+  #scale_fill_gradientn(name = "Enrichment Score",colours =   RColorBrewer::brewer.pal(n = 20, name = "Reds")) + 
+  scale_y_continuous() +
+  xlab("Biological Process")+
+  ylab("Enrichment Score") +
+  theme(axis.text.y = element_text(size = 12), axis.title = element_blank(), panel.background = element_blank()))
+
+```
+
+
+
+
+
 
 

@@ -1,0 +1,54 @@
+---
+title: "Clustifyr analysis"
+output: html_notebook
+---
+Use microarray reference data to generate classification of cell types using the classifyr package 
+
+```{r, install package}
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("clustifyr")
+
+```
+
+```{r, load library and format microarray reference data}
+
+library(clustifyr)
+
+##use the Helft normalized expression from the limma analysis pipeline: data.matrix
+
+#take the mean expression of each array and gene
+
+data.mat1 <- data.frame(GM_DC = rowMeans(data.matrix[,1:3]), GM_Mac = rowMeans(data.matrix[,4:6]))
+
+#translate the IDS to gene symbols
+
+#merge ensembl name and gene ID
+data.mat1 <- subset(data.mat1, rownames(data.mat1) %in% intersect(rownames(data.mat1), ann$ID))
+data.mat1$ID <- rownames(data.mat1)
+data.mat1 <- dplyr::left_join(data.mat1, ann, by = "ID")
+#set merged new name as rownames for gene entries
+dup <- which(duplicated(data.mat1$gene_symbol))
+data.mat1 <- data.mat1[-dup,]
+rownames(data.mat1) <- data.mat1$gene_symbol
+
+data.mat <- data.mat1[,1:2]
+
+```
+
+```{r, prepare necessary data from the single cell data}
+
+##workflow optimized for seurat objects
+#run clustifyr on data
+
+res <- clustifyr::clustify(input = se.dc.mus,ref_mat = data.mat, cluster_col = "seurat_clusters", obj_out = T)
+
+head(res[[]])
+
+DimPlot(res, group.by = "type")
+DimPlot(se.dc.mus, group.by = "celltype")
+
+```
+
