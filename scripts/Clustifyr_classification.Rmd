@@ -43,7 +43,7 @@ data.mat <- data.mat1[,1:2]
 ##workflow optimized for seurat objects
 #run clustifyr on data
 
-res <- clustifyr::clustify(input = se.dc.mus,ref_mat = data.mat, cluster_col = "seurat_clusters", obj_out = T)
+se.dc.mus <- clustifyr::clustify(input = se.dc.mus,ref_mat = data.mat, cluster_col = "seurat_clusters", obj_out = T)
 
 head(res[[]])
 
