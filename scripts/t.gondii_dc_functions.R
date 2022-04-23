@@ -5,9 +5,8 @@
 #meta refers to the data you want to group your data by (e.g. clusters, celltypes, etc.)
 #cond refers to the conditions you would like to display in the heatmap (numbers 1:16) (default is all conditions)
 #seed refers to the features you would like to include (charactervector of genes to display)
-#ann refers to the annotations you would like to have displayed in the heatmap  (default is all 3 annotations)
-
-hmat_mousetoxo <- function(data,meta,cond = 1:16 , seed, ann = 1:3) {
+hmat_mousetoxo <- function(data,meta) {
+  
   
   gene_data <- data.frame(data , cluster = meta ,check.names = F)  
   average_data <- aggregate(.~cluster, gene_data, mean)
@@ -16,25 +15,42 @@ hmat_mousetoxo <- function(data,meta,cond = 1:16 , seed, ann = 1:3) {
   rownames(average_data) <- cluster_name #you can also give your data individual cluster names 
   average_data <- t(average_data)
   phmat1 <- t(scale(t(average_data)))
-  #create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted)
-  phmat1[phmat1> 1.5] <- 1.5
-  phmat1[phmat1 < -1.5] <- -1.5
-  #plot genes of interest 
-  phmat1 <- phmat1[,colorder] #insert if statement here to order the columns as you would like 
-  
-  pheatmap(phmat1[seed,cond], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", color = colorRampPalette(c("#440154" ,"#21908C", "#FDE725"))(200),
-           annotation_col = annotation_col, annotation_colors = ann_cols,
-           name = "value", column_split = annotation_col$CellType, 
-           angle_col = "45"
-  )
-  
+  #create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted) (clipping the values)
+ #phmat1[phmat1> 1.5] <- 1.5
+ # phmat1[phmat1 < -1.5] <- -1.5
+  return(phmat1)
   
 }
 
 
+phmat_simple <- function(hmat, seed, cond) {
+  pheatmap(hmat[seed,cond], fontsize_row = 4, cellwidth = 70,
+           clustering_distance_rows = "correlation",breaks = seq(-max(abs(hmat)), max(abs(hmat)), length.out = 1000), 
+           color = colorRampPalette(c("#660156","#21908C", "white", "#FFF68F", "#FFD700"))(1001)
+        
+           
+  )
+}
+  
+phmat_original <- function(hmat, seed, cond) {
+  
+  annotation_col <- data.frame(CellType = factor(rep(c("GM_DC", "GM_Mac"), each = 8)))
+  rownames(annotation_col) <- colorder
+  colorder <- c("ctrl_GM_DC", "PTG_Lys3h_GM_DC" , "PTG_3h_GM_DC", "PTG_12h_GM_DC", "LDM_Lys3h_GM_DC", "LDM_3h_GM_DC" , "LDM_12h_GM_DC", "LPS_GM_DC", "ctrl_GM_Mac", "PTG_Lys3h_GM_Mac" , "PTG_3h_GM_Mac", "PTG_12h_GM_Mac", "LDM_Lys3h_GM_Mac", "LDM_3h_GM_Mac" , "LDM_12h_GM_Mac", "LPS_GM_Mac")
+  #add celltypes to the data in a complexheatmap
+  annotation_col$Strain <- paste(c("Control", "PTG", "PTG", "PTG", "LDM", "LDM", "LDM", "LPS", "Control", "PTG", "PTG", "PTG", "LDM", "LDM", "LDM", "LPS"))
+  annotation_col$Time <- as.integer(paste(c(3,3,3,12,3, 3, 12, 3, 3, 3, 3, 12, 3, 3,12, 3)))
+  ann_cols <- list(CellType = c("GM_DC" = "mediumorchid4", "GM_Mac" = "turquoise4"), Strain = c("PTG" = "hotpink3", "LDM" = "olivedrab3", "Control" = "dodgerblue2", "LPS" = "red4"), Time = c("gray20", "gray87"))
+  pheatmap(hmat[seed,cond], fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation",breaks = seq(-max(abs(hmat)), max(abs(hmat)), length.out = 1000), 
+           color = colorRampPalette(c("#660156","#21908C", "white", "#FFF68F", "#FFD700"))(1001),
+           annotation_col = annotation_col, annotation_colors = ann_cols,
+           name = "value", column_split = annotation_col$CellType, 
+           angle_col = "45"
+  )
+}
 ## Interaction plots
 
-f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65){
+f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65, m.col= "#5b83a1", t.col){
   
   # We first filter down the Top Interactors tables to the chosen number of interactors.
   TopIntGenes2 = TopIntGenes[1:K,]
@@ -78,10 +94,10 @@ f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65){
   V(gr.x)$name = make.names(V(gr.x)$name)
   #V(gr.x)$color[V(gr.x)$name %in% make.names(PTG_12h_markers)] = "#66CCFF"
   #V(gr.x)$color[V(gr.x)$name %in% make.names(LDM_12h_markers)] = "yellow3"
-  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "#66CCFF"
-  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "yellow3"
-  V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "#3399CC"
-  V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "yellow4"
+  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = m.col
+  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = t.col
+  V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = m.col
+  V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = t.col
   #V(gr.x)$shape[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "circle"
   #V(gr.x)$shape[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "circle"
   

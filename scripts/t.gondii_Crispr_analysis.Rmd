@@ -1,0 +1,127 @@
+---
+title: "Toxo_screen_analysis"
+output: html_document
+date: '2022-04-04'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Saeij et al. published a genome wide CRISPR screen to find fitness related genes in Toxoplasma infected Macrophages. We would like to compare their results to our data and see if there is mouse cluster specific expression of the fitter Toxoplasma infected cells and also to see if we find correlated upregulation of genes or genes of interest in our network.
+
+First we load the data for the toxoplasma crispr hits
+```{r , load data}
+
+library(readxl)
+crisp <- as.data.frame(read_excel("t.gondi_dc/data/CRISPR_screen_data_doi-org.ezp.sub.su.se:10.1038:s41467-020-18991-8/41467_2020_18991_MOESM5_ESM.xlsx", 
+    sheet = "Fitness"))
+head(crisp)
+
+crisp_naive_vs_hff <- subset(crisp,crisp[,8] == "YES")
+crisp_naive_vs_hff <- crisp_naive_vs_hff[,c(2:11)]
+crisp_naive_vs_hff$ME49_ID <- gsub("_", "-",crisp_naive_vs_hff$ME49_ID)
+head(crisp_naive_vs_hff)
+
+crisp_INF_vs_naive <-  subset(crisp,crisp[,13] == "YES")
+crisp_INF_vs_naive <- crisp_INF_vs_naive[,c(2:13)]
+crisp_INF_vs_naive$ME49_ID <- gsub("_", "-",crisp_INF_vs_naive$ME49_ID)
+head(crisp_INF_vs_naive)
+
+nrow(crisp_naive_vs_hff)
+nrow(crisp_INF_vs_naive)
+
+FeaturePlot(se.toxo, features = crisp_naive_vs_hff$ME49_ID)
+FeaturePlot(se.toxo, features = crisp_INF_vs_naive$ME49_ID)
+
+```
+
+
+```{r, visualize gene sets in co-expression network}
+
+
+#interaction networks for T.gondii fitness after INF stimulation
+f.KNN_mousetoxo(crisp_INF_vs_naive$ME49_ID, Nsteps = 3, K = 2 , cutoffValue = 0.2, t.col = "#FF7F00")
+#run for rhoptry genes
+f.KNN_mousetoxo(c(rop_genes$ensembl_gene_id), Nsteps = 3, K = 2 , cutoffValue = 0.2, t.col = "#FF7F00")
+#run for gra proteins
+f.KNN_mousetoxo(c(gra_genes$ensembl_gene_id), Nsteps = 3, K = 2 , cutoffValue = 0.2, t.col = "#FF7F00")
+
+##Include more steps and run GO analysis on mouse interactors 
+#Get the data per co-expression cluster
+```
+
+```{r, check for differences in toxo expression of genes of interest in mouse data}
+
+#add mouse clusters to toxoplasma object 
+
+mouse_clusters <- data.frame(mouse_cluster = se.dc.mus$seurat_clusters)
+mouse_clusters <- subset(mouse_clusters, rownames(mouse_clusters) %in% rownames(se.toxo[[]]))
+
+se.toxo <- AddMetaData(se.toxo, metadata = mouse_clusters, col.name = "mouseclusters")
+
+
+
+mus_tox_bar <- function(object, meta, seed) {
+  
+dat1 <- na.omit(data.frame(cluster = as.factor(meta), sum_seed = colSums(as.data.frame(object@assays$SCT@counts)[seed,]), sum_total = colSums(as.data.frame(object@assays$SCT@counts))))
+#summary statistics
+library(dplyr)
+print(group_by(dat1, cluster) %>%
+  summarise(
+    count = n(),
+    mean = mean(sum_seed, na.rm = TRUE),
+    sd = sd(sum_seed, na.rm = TRUE)
+  ))
+
+# Compute the analysis of variance
+res.aov <- aov(sum_seed ~ cluster, data = dat1)
+# Summary of the analysis
+print(summary(res.aov))
+
+tuk <- as.data.frame(TukeyHSD(res.aov)$cluster)
+print(tuk$`p adj`)
+tuk <- subset(tuk,tuk$`p adj` < 0.05)
+print(tuk) 
+
+p1 <- ggplot(dat1, aes(x = cluster, y = sum_seed, fill = cluster)) + 
+  geom_boxplot() + 
+  scale_fill_manual("cluster",values = c.cols[1:7]) +
+  theme(panel.background = element_rect(fill = c("white")), axis.text.y = element_text(size = 10), axis.text.x = element_text(size = 10, angle = 60, hjust = 1), axis.title.x = element_blank(), axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(colour = 'black', size=0.5, linetype='solid')) +
+  xlab("cluster (m. musculus)") + 
+  ylab("Σ count(INFγ:naive genes)")
+  
+return(p1)
+  
+}
+
+pdf("~/t.gondi_dc/res/figures/fig4/box_gene_set_expression_INF_naive_crispr.pdf")
+mus_tox_bar(se.toxo, se.toxo$mouseclusters, crisp_INF_vs_naive$ME49_ID)
+dev.off()
+
+
+
+```
+
+```{r, averaged gene expression across cells of toxo genes (grouped by clusters)}
+data <- se.toxo@assays$SCT@counts
+dat <- t(as.matrix(data))
+hmat_t <- hmat_mousetoxo(data = dat, meta = se.toxo$mouseclusters)
+rop_genes$ensembl_gene_id <- gsub("_", "-",rop_genes$ensembl_gene_id)
+gra_genes$ensembl_gene_id <- gsub("_", "-",gra_genes$ensembl_gene_id)
+hmat_crispr <- hmat_t[crisp_INF_vs_naive$ME49_ID,] #subset the matrix
+hmat_rop <- hmat_t[rop_genes$ensembl_gene_id[-3],]
+hmat_gra <- hmat_t[gra_genes$ensembl_gene_id,]
+#change the rownames of the genes
+rownames(hmat_t) <- paste(crisp_INF_vs_naive$ME49_I, "::", crisp_INF_vs_naive$`Gene products description`)
+rownames(hmat_rop) <- paste(rop_genes$ensembl_gene_id[-3], "::",rop_genes$description[-3])
+rownames(hmat_gra) <- paste(gra_genes$ensembl_gene_id, "::",gra_genes$description)
+
+pdf("~/t.gondi_dc/res/figures/fig4/heatmap_toxo_rop_expr.pdf")
+pheatmap(hmat_rop, fontsize_row = 8, cellwidth = 15, clustering_distance_rows = "correlation", breaks = seq(-max(abs(hmat_rop)), max(abs(hmat_rop)), length.out = 1000), color = colorRampPalette(c("#660156","#21908C", "white", "#FFF68F", "#FFD700"))(1001), angle_col = "45")
+dev.off()
+
+
+
+```

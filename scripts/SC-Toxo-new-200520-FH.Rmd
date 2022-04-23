@@ -28,6 +28,39 @@ VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA","nCount_SCT", "nFeatu
 
 ```
 
+
+```{r, get annotation table}
+
+
+genes <- (row.names(se.toxo@assays$RNA@counts))
+genes <- gsub("-", "_",genes)
+write.table(genes, "~/t.gondi_dc/res/ens.ids.txt",row.names = F, col.names = F, sep = ",",quote = F)
+
+genes.table.tg <- read.table("~/t.gondi_dc/data/meta/genes.table_tg.txt",sep = "\t",header = T)
+genes.table.tg$X <- NULL
+genes.table.tg$Input.ID<- NULL
+colnames(genes.table.tg) <- c("ensembl_gene_id","source_id","description","gene_biotype","external_gene_name")
+head(genes.table.tg)
+
+rop_genes <- genes.table.tg[grep("ROP", genes.table.tg$external_gene_name),]
+
+which(genes.table.tg[,1] == "TGME49_227280")
+
+#gra_genes <- genes.table.tg[grep("GRA", genes.table.tg$external_gene_name),]
+#add GRA genes to data:
+
+#GRA1: TGME49_270250 (https://www.uniprot.org/uniprot/B5M6R2)
+#GRA7: TGME49_203310 
+#GRA3: TGME49_227280 (https://www.uniprot.org/uniprot/B6KEU8)
+#GRA22: TGME49_015220 (https://doi.org/10.1016/j.molbiopara.2013.04.005)
+
+
+gra_genes <- genes.table.tg[grep("GRA", genes.table.tg$external_gene_name),]
+
+gra_genes
+
+```
+
 ```{r, normalize the data}
 
 se.toxo <- SCTransform(se.toxo)
@@ -58,9 +91,43 @@ se.toxo <- RunUMAP(se.toxo, dims = 1:6, min.dist = 0.1, spread = 0.5)
 
 se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
 
-DimPlot(se.toxo, group.by = "cell_class", cols = c("darkgreen", "darkolivegreen2", "darkblue", "cornflowerblue"))
-DimPlot(se.toxo, group.by = "seurat_clusters")
+```
 
+```{r, change the names of clusters}
+
+#rename the clusters
+new.cluster.ids <- c("Tg 1", "Tg 2", "Tg 3", "Tg 4")
+names(new.cluster.ids) <- levels(se.toxo)
+se.toxo <- RenameIdents(se.toxo, new.cluster.ids)
+levels(se.toxo) <- as.factor(c("Tg 1", "Tg 2", "Tg 3", "Tg 4"))
+levels(se.toxo)
+       
+
+#alternatively we can rename the seurat clusters colomun right away:
+se.toxo$seurat_clusters <- ifelse(se.toxo$seurat_clusters == "0", paste("Tg 3"), ifelse(se.toxo$seurat_clusters == "1", paste("Tg 1"), ifelse(se.toxo$seurat_clusters == "2", paste("Tg 4"),paste("Tg 2"))))
+
+DimPlot(se.toxo, group.by = "seurat_clusters", cols = toxo.c)
+
+
+```
+
+
+```{r, visualize clusters and genes in plot}
+
+
+p1 <- DimPlot(se.toxo, group.by = "cell_class", cols = toxo.c)+
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+p2 <- DimPlot(se.toxo, group.by = "seurat_clusters",cols = c("#F6511D", "#FFB400", "#00A6ED", "#DA70D6"))+
+                              theme(axis.ticks = element_blank(),
+                              axis.text = element_blank(), 
+                              axis.title = element_blank())
+
+
+pdf("~/t.gondi_dc/res/figures/fig4/tx_umap.pdf", width = 12, height = 5) #Units are pixels by default
+print(cowplot::plot_grid(p1,p2))
+dev.off()
 #Gra15 
 FeaturePlot(se.toxo, features = "TGME49-275470")
 
@@ -77,31 +144,19 @@ FeaturePlot(se.toxo, features = "nFeature_SCT")
 
 ```
 
-```{r, plot UMAPs}
+```{r, function to include gene of interest in metadata expression}
 
-umap.tx.clusters <- DimPlot(se.toxo, reduction = "umap", 
-                              group.by = "seurat_clusters",
-                              cols = c.cols) +
-                              theme(axis.ticks = element_blank(),
-                              axis.text = element_blank(), 
-                              axis.title = element_blank())
-umap.tx.cellclass <- DimPlot(se.toxo, reduction = "umap", 
-                               group.by = "cell_class", 
-                               cols = c("forestgreen", "olivedrab3", "blue3","dodgerblue3"))  +
-                              theme(axis.ticks = element_blank(),
-                              axis.text = element_blank(), 
-                              axis.title = element_blank())
+tg.exp <- function(object, gene) {
+ 
+  object$goi <- ifelse(object[["SCT"]]@data[gene, ] > 1, paste(gene,"+"), paste(gene,"-")) 
+  return(object)
+}
 
-umap.tx.cellcycle <- DimPlot(se.toxo, group.by = "Phase",cols = c("darkolivegreen", "royalblue4", "darkorange3")) +  
-                              theme(axis.ticks = element_blank(),
-                              axis.text = element_blank(), 
-                              axis.title = element_blank())
+se.toxo <- tg.exp(se.toxo,"TGME49-275470")
 
-png(filename = "~/t.gondi_dc/res/tx_umap.png", width = 50, height = 15, res = 600, units = "cm") #Units are pixels by default
-print(cowplot::plot_grid(umap.tx.cellclass,umap.tx.clusters, umap.tx.cellcycle, ncol = 3))
-dev.off()
 
 ```
+
 
 
 ```{r, DEG of original cell classes}
@@ -243,7 +298,7 @@ compare to the total number of cells in each cluster and the numbers of mouse tr
 ```{r, number of mouse transcripts in each cluster}
 
 #Number of toxoplasma transcripts/cluster
-nc <- c(0:3)
+nc <- c("Tg 1", "Tg 2", "Tg 3", "Tg 4")
 n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
 
 cluster.t.p.l <- setNames(sapply(nc, function(x){
@@ -328,6 +383,7 @@ DimPlot(se.toxo, group.by = "Phase",cols = c("darkolivegreen", "royalblue4", "da
 ```
 
 ```{r, attach cell types to the toxo data}
+
 mus_celltypes <- as.data.frame(se.dc.mus$celltype)
 rownames(mus_celltypes) <- rownames(se.dc.mus[[]])
 names(mus_celltypes)[1] <- "mus_celltypes"
@@ -369,3 +425,4 @@ VlnPlot(se.toxo.cell, features = toxo.markers.DC$gene , group.by = "mus_celltype
 dev.off()
 
 ```
+
