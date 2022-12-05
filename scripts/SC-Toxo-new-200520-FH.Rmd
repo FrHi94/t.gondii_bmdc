@@ -7,14 +7,15 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 
 
 
-```{r, read in data, fig.height= 12, fig.width= 10}
+```{r, read in data, fig.height= 3, fig.width= 5}
 
 dc.data.toxo <- read.csv("~/t.gondi_dc/data/cnt/toxo-DC-counts.csv", row.names = 1, header = T, check.names = FALSE)
 
-meta1 <- read.table("~/t.gondi_dc/data/meta/metadata-200430.csv", sep = ",", header = T, row.names = 1)
+meta1 <- read.table("~/t.gondi_dc/data/meta/meta_141221.csv", sep = ",", header = T, row.names = 1)
 
-genes.table.tg <- read.table("~/Desktop/PhDprojectFranziskaHildebrandt/TG-DC-Analysis/gene_name_translation_tg.tab", sep = ",", header = T, row.names = 1)
-
+genes.table.tg <- read.table("~/t.gondi_dc/data/meta/toxo_go_all.csv", sep = ",", header = T, row.names = 1)
+colnames(genes.table.tg) <- c("source_id", "description", "gene_type", "input_ID", "external_gene_name", "Computed_GO_Component_ID", "Computed_GO_Component", "Computed_GO_Function_ID", "Computed_GO_Function", "Computed_GO_Progess_ID", "Computed_GO_Progress", "Curated_GO_Component_ID", "Curated_GO_Component", "Curated_GO_Function_ID", "Curated_GO_Function", "Curated_GO_Process_ID", "Curated_GO_Process")
+genes.table.tg$ensembl_gene_id <- gsub("_", "-",rownames(genes.table.tg))
 
 se.toxo <- CreateSeuratObject(dc.data.toxo, min.cells = 3, min.features = 200, project = "DC-TG-FH-T", meta.data = meta1)
 
@@ -23,29 +24,28 @@ VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol 
 se.toxo <- subset(se.toxo, subset = cell_class %in% c("LDM_3h", "LDM_12h", "PTG_3h", "PTG_12h"))
 
 
-VlnPlot(se.toxo, features = c("nCount_RNA", "nFeature_RNA","nCount_SCT", "nFeature_SCT"), ncol = 2, group.by = "cell_class")
+VlnPlot(se.dc.mus, features = c("nCount_RNA", "nFeature_RNA","nCount_SCT", "nFeature_SCT"), ncol = 2, group.by = "cell_class")
 
 
 ```
 
 
-```{r, get annotation table}
+```{r, get table}
 
 
 genes <- (row.names(se.toxo@assays$RNA@counts))
 genes <- gsub("-", "_",genes)
 write.table(genes, "~/t.gondi_dc/res/ens.ids.txt",row.names = F, col.names = F, sep = ",",quote = F)
 
-genes.table.tg <- read.table("~/t.gondi_dc/data/meta/genes.table_tg.txt",sep = "\t",header = T)
-genes.table.tg$X <- NULL
-genes.table.tg$Input.ID<- NULL
+genes.table.tg <- read.csv("~/t.gondi_dc/data/meta/go.table.tg.terms.tsv",header = T, sep = "\t")
 colnames(genes.table.tg) <- c("ensembl_gene_id","source_id","description","gene_biotype","external_gene_name")
 head(genes.table.tg)
 
 rop_genes <- genes.table.tg[grep("ROP", genes.table.tg$external_gene_name),]
 
-which(genes.table.tg[,1] == "TGME49_227280")
-
+which(genes.table.tg[,1] == "TGME49_015220")
+which(rownames(se.toxo@assays$SCT@counts)== "TGME49-275470")
+which(rownames(se.toxo@assays$SCT@counts)== "TGME49-270250")
 #gra_genes <- genes.table.tg[grep("GRA", genes.table.tg$external_gene_name),]
 #add GRA genes to data:
 
@@ -57,9 +57,12 @@ which(genes.table.tg[,1] == "TGME49_227280")
 
 gra_genes <- genes.table.tg[grep("GRA", genes.table.tg$external_gene_name),]
 
+rop_genes
 gra_genes
 
 ```
+
+
 
 ```{r, normalize the data}
 
@@ -71,11 +74,11 @@ se.toxo <- SCTransform(se.toxo)
 
 se.toxo <- RunPCA(se.toxo)
 
-print(se.toxo[["pca"]], dims = 1:5, nfeatures = 5)
+print(se.toxo[["pca"]], dims = 1, nfeatures = 30)
 
 VizDimLoadings(se.toxo, dims = 1:2, reduction = "pca")
 
-DimPlot(se.toxo,  reduction = "pca", group.by = "cell_class")
+DimPlot(se.toxo,  reduction = "pca", group.by = "Phase")
 
 DimHeatmap(se.toxo, dims = 1:15, cells = 500, balanced = TRUE)
 
@@ -87,27 +90,12 @@ se.toxo <- FindClusters(se.toxo) #start with default resolution of 0.8
 #inspect the clusters
 head(Idents(se.toxo), 5)
 
-se.toxo <- RunUMAP(se.toxo, dims = 1:6, min.dist = 0.1, spread = 0.5)
+se.toxo <- RunUMAP(se.toxo, dims = 1:9, min.dist = 0.1, spread = 0.5)
 
 se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
 
-```
-
-```{r, change the names of clusters}
-
-#rename the clusters
-new.cluster.ids <- c("Tg 1", "Tg 2", "Tg 3", "Tg 4")
-names(new.cluster.ids) <- levels(se.toxo)
-se.toxo <- RenameIdents(se.toxo, new.cluster.ids)
-levels(se.toxo) <- as.factor(c("Tg 1", "Tg 2", "Tg 3", "Tg 4"))
-levels(se.toxo)
-       
-
-#alternatively we can rename the seurat clusters colomun right away:
-se.toxo$seurat_clusters <- ifelse(se.toxo$seurat_clusters == "0", paste("Tg 3"), ifelse(se.toxo$seurat_clusters == "1", paste("Tg 1"), ifelse(se.toxo$seurat_clusters == "2", paste("Tg 4"),paste("Tg 2"))))
-
-DimPlot(se.toxo, group.by = "seurat_clusters", cols = toxo.c)
-
+DimPlot(se.toxo, group.by = "cell_class")
+DimPlot(se.toxo, group.by = "seurat_clusters")
 
 ```
 
@@ -119,7 +107,7 @@ p1 <- DimPlot(se.toxo, group.by = "cell_class", cols = toxo.c)+
                               theme(axis.ticks = element_blank(),
                               axis.text = element_blank(), 
                               axis.title = element_blank())
-p2 <- DimPlot(se.toxo, group.by = "seurat_clusters",cols = c("#F6511D", "#FFB400", "#00A6ED", "#DA70D6"))+
+p2 <- DimPlot(se.toxo, group.by = "seurat_clusters",cols = c("#F6511D", "#FFB400", "#00A6ED", "#551A8B", "#698B69"))+
                               theme(axis.ticks = element_blank(),
                               axis.text = element_blank(), 
                               axis.title = element_blank())
@@ -128,21 +116,11 @@ p2 <- DimPlot(se.toxo, group.by = "seurat_clusters",cols = c("#F6511D", "#FFB400
 pdf("~/t.gondi_dc/res/figures/fig4/tx_umap.pdf", width = 12, height = 5) #Units are pixels by default
 print(cowplot::plot_grid(p1,p2))
 dev.off()
-#Gra15 
-FeaturePlot(se.toxo, features = "TGME49-275470")
-
-#Rop16
-FeaturePlot(se.toxo, features = "TGME49-262730")
-
-se.toxo$Gra15_expression <- ifelse(se.toxo[["SCT"]]@data["TGME49-275470", ] > 1, "Gra15+", "Gra15-")
-
-se.toxo$Rop16_expression <- ifelse(se.toxo[["SCT"]]@data["TGME49-262730", ] > 1, "Rop16+", "Rop16-")
-
-#One group of LDM toxo as well as PTG toxo seems to be clustering away from the rest of the cells with toxo : It would be interesting to take these cells and visualise these on the umap for the dc clustering as well as the combined umap for toxo and DCs! and then look if they are in a specific cluster!! 
 
 FeaturePlot(se.toxo, features = "nFeature_SCT")
 
 ```
+
 
 ```{r, function to include gene of interest in metadata expression}
 
@@ -154,32 +132,163 @@ tg.exp <- function(object, gene) {
 
 se.toxo <- tg.exp(se.toxo,"TGME49-275470")
 
-
 ```
 
 
 
-```{r, DEG of original cell classes}
+```{r, DEG of clusters}
 
 se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
 tx.markers <- FindAllMarkers(se.toxo, logfc.threshold = 0.5, min.pct = 0.25, only.pos = T)
-tx.markers <- subset(tx.markers, p_val_adj < 0.05)
+tx.markers <- subset(tx.markers, p_val_adj < 0.05 & avg_log2FC > 1)
 top20.all.i <- tx.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_log2FC)
 
-png("~/t.gondi_dc/res/figures/fig5/tx_heatmap.png", width = 40, height = 30, res = 600, units = "cm")
+#png("~/t.gondi_dc/res/figures/fig5/tx_heatmap.png", width = 40, height = 30, res = 600, units = "cm")
 DoHeatmap(se.toxo, features = top20.all.i$gene, group.colors = c.cols)
-dev.off()
+#dev.off()
+
+
+genes.table.tg$external_gene_name[genes.table.tg$mat_id %in% tx.markers$gene[tx.markers$cluster == 5]]
 
 ```
-Calculate percentages of each condition within toxo clusters 
+
+We can also run he cell cycle scoring function for T. gondii transcripts. However T. gondi does not have a classical cell cycle arrest G2/M phase but enters Mitosis directly from the S-Phase. However, there is a short transition between S-Phase and Mitosis (S-/M-phase) that we can use here to run CellCycleScoring and see if we can easily interpret the results. 
+
+The gene-lists for the different phases are mainly taken from Supplementary table 1 of https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0012354#pone.0012354-Radke1.
+
+```{r, run CellCycle analysis for T.gondii}
+
+
+#cell cycle regulated AP2 factors for S- and S-M phase to run CellCycle scoring 
+
+## I had to adjust the IDs as they have been changed since the paper was published (which is based on ToxoDB v5)
+
+
+s.phase <- c("TGME49-215150", "TGME49-217700" , "TGME49-288950", "TGME49-237090", "TGME49-240460") 
+s_m.phase <- c("TGME49-282210", "TGME49-309410", "TGME49-253380" , "TGME49-318470", "TGME49-251740")
+
+##we can also take the positive + negative loadings of PC1
+pc1_pos <- c("TGME49-261740", "TGME49-309590", "TGME49-202500", "TGME49-231630", "TGME49-247520", "TGME49-201860", "TGME49-291960", "TGME49-221620", "TGME49-271970", "TGME49-316400")
+
+pc1_neg <- c("TGME49-250710", "TGME49-204050", "TGME49-277080", "TGME49-291890", "TGME49-214940", "TGME49-203310", "TGME49-201780", "TGME49-204530", "TGME49-218520", "TGME49-270250")
+
+```
+
+```{r, identify a larger group of cycling cells, fig.width= 20, fig.height=5}
+##We can also use the entire dataset of cell cycle dependent genes from ToxoDB and look at their correlations - we want to select genes that show anti-correlated expression in our data to reliably identify cycling cells. 
+G1.dat <- read.csv(file = "~/Downloads/Sub_Transcriptome_G1_240922.csv", header = T)
+G1.dat$Gene.ID <- sub("_", "-", G1.dat$Gene.ID)
+colnames(G1.dat)[1] <- "ensembl_gene_id"
+colnames(G1.dat)[5] <- "external_gene_name"
+G1.dat <- G1.dat[G1.dat$ensembl_gene_id %in% rownames(se.toxo@assays$SCT@scale.data),]
+S_M.dat <- read.csv(file = "~/Downloads/Sub_Transcriptome_S_M_240922.csv", header = T)
+S_M.dat$Gene.ID <- sub("_", "-", S_M.dat$Gene.ID)
+colnames(S_M.dat)[1] <- "ensembl_gene_id"
+colnames(S_M.dat)[5] <- "external_gene_name"
+S_M.dat <- S_M.dat[S_M.dat$ensembl_gene_id %in% rownames(se.toxo@assays$SCT@scale.data),]
+
+
+
+```
+
+```{r, add cell cycle data to the set}
+
+#new_data: 
+
+g1_phase = G1.dat$ensembl_gene_id
+  
+s_m_phase = S_M.dat$ensembl_gene_id
+
+##Explore in detail on toxoDB : see if you can annotate the gene
+
+se.toxo <- CellCycleScoring(se.toxo1, g2m.features = pc1_neg, s.features = pc1_pos
+                            )
+
+DimPlot(se.toxo, reduction = "pca", group.by = "Phase")
+
+#rename the phases correctly (according to Behnke data)
+
+se.toxo$Phase <- gsub("S", "S/M", se.toxo$Phase)
+se.toxo$Phase <- gsub("G2M", "G1", se.toxo$Phase)
+
+
+
+```
+
+```{r, normalize for cell cycle Phase}
+
+se.toxo <- SCTransform(se.toxo, vars.to.regress = "Phase")
+
+```
+
+```{r, Run Dimensionality reduction and umap analysis again}
+
+se.toxo <- RunPCA(se.toxo)
+
+print(se.toxo[["pca"]], dims = 1, nfeatures = 30)
+
+VizDimLoadings(se.toxo, dims = 1:2, reduction = "pca")
+
+DimPlot(se.toxo,  reduction = "pca", group.by = "Phase")
+
+DimHeatmap(se.toxo, dims = 1:15, cells = 500, balanced = TRUE)
+
+ElbowPlot(se.toxo, ndims= 20, reduction ="pca")
+
+
+se.toxo <- FindNeighbors(se.toxo, dims = 1:9)
+se.toxo <- FindClusters(se.toxo) #start with default resolution of 0.8
+#inspect the clusters
+head(Idents(se.toxo), 5)
+
+se.toxo <- RunUMAP(se.toxo, dims = 1:9, min.dist = 0.1, spread = 0.5)
+
+se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
+
+DimPlot(se.toxo, group.by = "cell_class")
+DimPlot(se.toxo, group.by = "seurat_clusters")
+
+```
+
+
+```{r, change the names of clusters}
+
+#rename the clusters
+new.cluster.ids <- c("Tg 1", "Tg 2", "Tg 3", "Tg 4", "Tg 5")
+names(new.cluster.ids) <- levels(se.toxo)
+se.toxo <- RenameIdents(se.toxo, new.cluster.ids)
+levels(se.toxo) <- as.factor(c("Tg 1", "Tg 2", "Tg 3", "Tg 4", "Tg 5"))
+levels(se.toxo)
+       
+
+#alternatively we can rename the seurat clusters colomun right away:
+se.toxo$seurat_clusters <- ifelse(se.toxo$seurat_clusters == "0", paste("Tg 1"), ifelse(se.toxo$seurat_clusters == "1", paste("Tg 2"), ifelse(se.toxo$seurat_clusters == "2", paste("Tg 3"),ifelse(se.toxo$seurat_clusters == "3", paste("Tg 4"),ifelse(se.toxo$seurat_clusters == "4", paste("Tg 5"),paste("Tg 2"))))))
+
+DimPlot(se.toxo, group.by = "seurat_clusters", cols  = c("#F6511D", "#FFB400", "#00A6ED", "#551A8B", "#698B69" ))
+
+FeaturePlot(se.toxo, features = "toxo_nUMI")
+
+DimPlot(se.toxo, group.by = "cell_class")
+DimPlot(se.toxo, group.by = "seurat_clusters")
+DimPlot(se.toxo, group.by = "Phase", reduction = "pca")
+
+
+pdf("~/t.gondi_dc/res/figures/supplementary/cell_cycle_scoring_tx.pdf")
+DimPlot(se.toxo, pt.size = 3, group.by = "Phase",cols = c("darkolivegreen", "royalblue4")) +  
+      theme(axis.ticks = element_blank(),
+      axis.text = element_blank(), 
+      axis.title = element_blank())
+dev.off()   
+
+```
+
+
 ```{r, calculate percentages of each condition within individual clusters}
 
-#write sapply function to give vector for each cluster and condition and create a dataframe with the information 
-clusters <- c(0:3)
+# sapply function to give vector for each cluster and condition and create a dataframe with the information 
+clusters <- c("Tg 1","Tg 2", "Tg 3", "Tg 4", "Tg5")
 
-LPS_perCluster <- sapply(X = clusters, function(cluster) {
-  length(which(se.toxo@meta.data$cell_class == "LPS" & se.toxo@meta.data$seurat_clusters == cluster))
-})
+
 
 LDM_3h_perCluster <- sapply(X = clusters, function(cluster) {
   length(which(se.toxo@meta.data$cell_class == "LDM_3h" & se.toxo@meta.data$seurat_clusters == cluster))
@@ -197,21 +306,10 @@ PTG_12h_perCluster <-  sapply(X = clusters, function(cluster) {
   length(which(se.toxo@meta.data$cell_class == "PTG_12h" & se.toxo@meta.data$seurat_clusters == cluster))
 })
 
-ctrl_perCluster <-  sapply(X = clusters, function(cluster) {
-  length(which(se.toxo@meta.data$cell_class == "ctrl" & se.toxo@meta.data$seurat_clusters == cluster))
-})
 
-LDM_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
-  length(which(se.toxo@meta.data$cell_class == "LDM_Lys3h" & se.toxo@meta.data$seurat_clusters == cluster))
-})
-
-PTG_Lys3h_perCluster <-  sapply(X = clusters, function(cluster) {
-  length(which(se.toxo@meta.data$cell_class == "PTG_Lys3h" & se.toxo@meta.data$seurat_clusters == cluster))
-})
-
-n1 <- c("cluster0", "cluster1", "cluster2", "cluster3")
-identpercluster <- data.frame(n1, LDM_3h_perCluster, PTG_3h_perCluster, LDM_12h_perCluster, PTG_12h_perCluster, ctrl_perCluster, LDM_Lys3h_perCluster, PTG_Lys3h_perCluster, LPS_perCluster)
-colnames(identpercluster) <- c("cluster", "LDM 3h", "PTG 3h", "LDM 12h", "PTG 12h", "uninfected", "LDM Lysate", "PTG Lysate", "LPS")
+n1 <- c("Tg1", "Tg2", "Tg3", "Tg4", "Tg5")
+identpercluster <- data.frame(n1, LDM_3h_perCluster, PTG_3h_perCluster, LDM_12h_perCluster, PTG_12h_perCluster)
+colnames(identpercluster) <- c("cluster", "LDM 3h", "PTG 3h", "LDM 12h", "PTG 12h")
 identpercluster <- gather(identpercluster, key = "identity", value = "cellcount", -cluster)
 
 #calculate percentages using an apply function 
@@ -227,160 +325,77 @@ print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
   geom_bar(position = "stack", stat = "identity") +
   xlab("") +
   ylab ("relative proportion of cells") + 
-  scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
+  scale_fill_manual(values = c("blue3", "dodgerblue", "olivedrab3", "red4", "magenta4", "deeppink3", "seagreen3", "forestgreen")) + 
   theme_classic() + 
   theme(legend.title = element_blank()))
 #dev.off()
 
 ```
 
+
 ```{r, scale the calcualted percentages}
 #calculate percentages of individual clusters with normalizing to the individual cluster 
 
-c0.p <- subset(identpercluster, cluster == "cluster0")
-c1.p <- subset(identpercluster, cluster == "cluster1")
-c2.p <- subset(identpercluster, cluster == "cluster2")
-c3.p <- subset(identpercluster, cluster == "cluster3")
+c1.p <- subset(identpercluster, cluster == "Tg 1")
+c2.p <- subset(identpercluster, cluster == "Tg 2")
+c3.p <- subset(identpercluster, cluster == "Tg 3")
+c4.p <- subset(identpercluster, cluster == "Tg 4")
+c5.p <- subset(identpercluster, cluster == "Tg 5")
+
+cp.l <- c(c1.p$cellcount, c2.p$cellcount, c3.p$cellcount,c4.p$cellcount, c5.p$cellcount)
 
 
-cp.l <- c(c0.p$cellcount, c1.p$cellcount, c2.p$cellcount, c3.p$cellcount)
-
-
-c0.p$percent.cluster <-  c0.p$cellcount/sum(c0.p$cellcount)*100
 c1.p$percent.cluster <-  c1.p$cellcount/sum(c1.p$cellcount)*100
 c2.p$percent.cluster <-  c2.p$cellcount/sum(c2.p$cellcount)*100
 c3.p$percent.cluster <-  c3.p$cellcount/sum(c3.p$cellcount)*100
+c4.p$percent.cluster <-  c4.p$cellcount/sum(c4.p$cellcount)*100
+c5.p$percent.cluster <-  c5.p$cellcount/sum(c5.p$cellcount)*100
 
 
-identpercluster1 <- dplyr::bind_rows(c0.p,c1.p, c2.p,c3.p)
+identpercluster1 <- dplyr::bind_rows(c1.p, c2.p,c3.p, c4.p, c5.p)
 
-#png("~/Dropbox/shared_ankarklev/Franzi-analysis/Results-FiguresAndTables/cellIDpercluster-norm.png", width = 20, height = 10, units = "cm", res = 300) 
+identpercluster1 <- identpercluster1[identpercluster1$identity %in% c("LDM 12h", "LDM 3h", "PTG 12h", "PTG 3h"),]
+#pdf("~/t.gondi_dc/res/figures/fig4/percentage_cond_cluster.pdf", width = 8,height = 5)
   print(ggplot(identpercluster1, aes(cluster, percent.cluster, fill= identity)) +
   geom_bar(position = "stack", stat = "identity") +
   xlab("") +
   ylab ("cells of original condition per cluster [%]") + 
-  scale_fill_manual(values = c( "#D95F02", "#7570B3" ,"#E7298A", "#66A61E" ,"#E6AB02" ,"#A6761D", "#666666" ,"#1B9E77")) + 
+  scale_fill_manual(values = toxo.c) + 
   theme_classic() + 
   theme(legend.title = element_blank()))
-#  dev.off()
+#dev.off()
 
-```
 
-Calculate amount of toxo transcripts within each toxo cluster 
+library(flipPlots)
 
-```{r, number of toxo transcripts in each cluster}
+p <- SankeyDiagram(identpercluster1[, -c(3:7)],
+              link.color = "Target", 
+              colors = c("maroon4","olivedrab3","hotpink2","darkgreen"),
+              weights = identpercluster1$percent) 
 
-#Number of toxoplasma transcripts/cluster
-nc <- c(0:3)
-n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
+p 
 
-cluster.t.p.l <- setNames(sapply(nc, function(x){
-subset(se.toxo, subset = seurat_clusters %in% x)
-}), nm = n)
-
-cluster.t.p.l <- setNames(lapply(cluster.t.p.l, function(x){
-  sum(x@meta.data$toxo_nUMI)
-}), nm = n) 
-
-cluster.t.p.l <- as.data.frame(unlist(cluster.t.p.l))
-
-names(cluster.t.p.l)[1] <- "percentage"
-cluster.t.p.l$cluster <- as.character(0:3)
-
-print(ggplot(cluster.t.p.l, aes(cluster, percentage)) + 
-  geom_bar(stat = "identity") + 
-  theme_classic() + 
-  ylab("nUMI T. gondii per cluster"))
-
-```
-compare to the total number of cells in each cluster and the numbers of mouse transcripts per cluster and see if you need to normalize for the total number of cells or if that already happened (double-check)! 
-
-```{r, number of mouse transcripts in each cluster}
-
-#Number of toxoplasma transcripts/cluster
-nc <- c("Tg 1", "Tg 2", "Tg 3", "Tg 4")
-n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
-
-cluster.t.p.l <- setNames(sapply(nc, function(x){
-subset(se.toxo, subset = seurat_clusters %in% x)
-}), nm = n)
-
-cluster.t.p.l <- setNames(lapply(cluster.t.p.l, function(x){
-  sum(x@meta.data$mouse_nUMI)
-}), nm = n) 
-
-cluster.t.p.l <- as.data.frame(unlist(cluster.t.p.l))
-
-names(cluster.t.p.l)[1] <- "percentage"
-cluster.t.p.l$cluster <- as.character(0:3)
-
-print(ggplot(cluster.t.p.l, aes(cluster, percentage)) + 
-  geom_bar(stat = "identity") + 
-  theme_classic() + 
-  ylab("nUMI m. musculus per cluster"))
+saveWidget(p,"~/t.gondi_dc/res/figures/fig4/percentage_cond_cluster_sankey.html")
 
 ```
 
 
-It does not seem to be normalized for the total number of UMIs in each cluster since the % of mouse transcripts is also lower in cluster 2 and 3 (as observed for the percentage of T. gondii umis in these clusters)
+```{r, DEG of clusters}
 
-Check for the total number of Umis in each cluster
+se.toxo <- SetIdent(se.toxo, value = "seurat_clusters")
+tx.markers <- FindAllMarkers(se.toxo, logfc.threshold = 0.5, min.pct = 0.25, only.pos = T)
+tx.markers <- subset(tx.markers, p_val_adj < 0.05 & avg_log2FC > 1)
+top20.all.i <- tx.markers %>% group_by(cluster) %>% top_n(n=20, wt =avg_log2FC)
 
-```{r, total number transcripts in each cluster}
+#png("~/t.gondi_dc/res/figures/fig5/tx_heatmap.png", width = 40, height = 30, res = 600, units = "cm")
+DoHeatmap(se.toxo, features = top20.all.i$gene, group.colors = c.cols)
+#dev.off()
 
-#Number of toxoplasma transcripts/cluster
-nc <- c(0:3)
-n <- c("sum.c0", "sum.c1", "sum.c2", "sum.c3")
-
-cluster.t.p.l <- setNames(sapply(nc, function(x){
-subset(se.toxo, subset = seurat_clusters %in% x)
-}), nm = n)
-
-cluster.t.p.l <- setNames(lapply(cluster.t.p.l, function(x){
-  sum(x@meta.data$nUMI)
-}), nm = n) 
-
-cluster.t.p.l <- as.data.frame(unlist(cluster.t.p.l))
-
-names(cluster.t.p.l)[1] <- "percentage"
-cluster.t.p.l$cluster <- as.character(0:3)
-
-print(ggplot(cluster.t.p.l, aes(cluster, percentage)) + 
-  geom_bar(stat = "identity") + 
-  theme_classic() + 
-  ylab("nUMI per cluster"))
+##Investigate genes present in one of the clusters only 
+genes.table.tg$external_gene_name[genes.table.tg$mat_id %in% tx.markers$gene[tx.markers$cluster == 5]]
 
 ```
 
-We can also run he cell cyecle scoring function for T. gondii transcripts. However T. gondi does not have a classical cell cycle arrest G2/M phase but enters Mitosis directly from the S-Phase. However, there is a short transition between S-Phase and Mitosis (S-/M-phase) that we can use here to run CellCycleScoring and see if we can easily interpret the results. 
-
-The gene-lists for the different phases are mainly taken from Supplementary table 1 of https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0012354#pone.0012354-Radke1.
-
-```{r, run CellCycle analysis for T.gondii}
-
-
-# cell cycle regulaed AP2 factors for S- and S-M phase to run CellCycle scoring 
-
-## I had to adjust the IDs as they have been changed since the paper was published (which is based on ToxoDB v5)
-
-
-s.phase <- c("TGME49-215150", "TGME49-217700" , "TGME49-288950", "TGME49-237090", "TGME49-240460") 
-s_m.phase <- c("TGME49-282210", "TGME49-309410", "TGME49-253380" , "TGME49-318470", "TGME49-251740")
-
-se.toxo <- CellCycleScoring(se.toxo, g2m.features = s_m.phase, s.features = s.phase)
-
-se.toxo$Phase <- gsub("G2M", "S/M", se.toxo$Phase)
-
-
-DimPlot(se.toxo, reduction = "pca", group.by = "Phase" )
-DimPlot(se.toxo, group.by = "Phase",cols = c("darkolivegreen", "royalblue4", "darkorange3")) +  
-      theme(axis.ticks = element_blank(),
-      axis.text = element_blank(), 
-      axis.title = element_blank())
-                          
-
-
-```
 
 ```{r, attach cell types to the toxo data}
 
@@ -398,31 +413,239 @@ DimPlot(se.toxo.cell, group.by = "mus_celltypes")
 
 ```
 
-```{r, investigate DEG between toxo in GM-DCs vs GM-Macs, fig.width= 40, fig.height= 20}
 
-se.toxo.cell <- SetIdent(se.toxo.cell, value = "mus_celltypes")
+```{r, look at differentially expressed toxo genes across cluster and look at them in the mouse clusters/conditions/celltypes, fig.width=60, fig.height=10 }
 
-toxo.markers.celltype <- FindAllMarkers(se.toxo.cell, only.pos = T)
-head(toxo.markers.celltype)
-toxo.markers.celltype <- subset(toxo.markers.celltype, p_val_adj < 0.05)
-toxo.markers.celltype <- toxo.markers.celltype[order(-toxo.markers.celltype$avg_log2FC),]
-#string-split rownames with .1 behind
-mutate(toxo.markers.celltype, gene = sapply(strsplit(rownames(toxo.markers.celltype), split ='.', fixed=TRUE),function(x) (x[1])))
+#First generate the annotation table of toxoplasma genes specifically for DEGs
+deg_t.gondii <- subset(genes.table.tg, genes.table.tg$ensembl_gene_id %in% tx.markers$gene)
+#subset the generated annotations table for a cluster of interest
+deg_t.gondii_cluster5 <- subset(deg_t.gondii, deg_t.gondii$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="5",]$gene)
+#generate a heatmap 
+t_hmat(hmat_m, deg_t.gondii) #grouped by mouse clusters
+t_hmat(hmat_t, deg_t.gondii) #grouped by toxo clusters
+#pdf("~/t.gondi_dc/res/figures/fig3/deg_cluster5_mouse.pdf", width = 80, height = 10)
+t_hmat(hmat_m, deg_t.gondii_cluster5) #for a subset of genes 
+#dev.off()
+
+
+```
+
+Integration/Comparison of data to sub-cellulur protein localization studies using hyperLOPIT, which identified the localization of a number of proteins to T. gondii specific structures. 
+
+```{r, add hyperlopet localizations to data}
+
+hyperlopet <- na.omit(read.csv("~/t.gondi_dc/data/meta/221025_hyperlopet_tgondii.csv",header = T)) #load data
+hyperlopet#subset 
+hyperlopet <- data.frame(ensembl_gene_id = hyperlopet$X, description_1 = hyperlopet$Description, hyperlopet_allocation = hyperlopet$tagm.map.allocation)
+
+#format 
+rownames(hyperlopet) <- hyperlopet$ensembl_gene_id
+hyperlopet$ensembl_gene_id <- gsub("_", "-", hyperlopet$ensembl_gene_id)
+
+head(deg_t.gondii)
+head(hyperlopet)
+hyperlopet <- subset(hyperlopet, hyperlopet$ensembl_gene_id %in% deg_t.gondii$ensembl_gene_id)
+deg_t.gondii_allo <- subset(deg_t.gondii, deg_t.gondii$ensembl_gene_id %in% hyperlopet$ensembl_gene_id)
+
+deg_t.gondii_allo <- left_join(deg_t.gondii_allo, hyperlopet, by = "ensembl_gene_id")
+deg_t.gondii_allo$hyperlopet_allocation <- as.factor(deg_t.gondii_allo$hyperlopet_allocation)
+
+
+##split bt clusters
+#cluster Tg1
+deg_t.gondii_allo_c1 <- subset(deg_t.gondii_allo, deg_t.gondii_allo$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="0",]$gene)
+deg_t.gondii_allo_c1$hyperlopet_allocation <- factor(deg_t.gondii_allo_c1$hyperlopet_allocation)
+
+#cluster Tg2
+deg_t.gondii_allo_c2 <- subset(deg_t.gondii_allo, deg_t.gondii_allo$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="1",]$gene)
+deg_t.gondii_allo_c2$hyperlopet_allocation <- factor(deg_t.gondii_allo_c2$hyperlopet_allocation)
+
+#cluster Tg3
+deg_t.gondii_allo_c3 <- subset(deg_t.gondii_allo, deg_t.gondii_allo$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="2",]$gene)
+deg_t.gondii_allo_c3$hyperlopet_allocation <- factor(deg_t.gondii_allo_c3$hyperlopet_allocation)
+
+#cluster Tg4
+deg_t.gondii_allo_c4 <- subset(deg_t.gondii_allo, deg_t.gondii_allo$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="3",]$gene)
+deg_t.gondii_allo_c4$hyperlopet_allocation <- factor(deg_t.gondii_allo_c4$hyperlopet_allocation)
+
+#cluster Tg5
+deg_t.gondii_allo_c5 <- subset(deg_t.gondii_allo, deg_t.gondii_allo$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="4",]$gene)
+deg_t.gondii_allo_c5$hyperlopet_allocation <- factor(deg_t.gondii_allo_c5$hyperlopet_allocation)
+
   
-toxo.markers.DC <- subset(toxo.markers.celltype, cluster == "GM-DC")
-toxo.markers.MAC <- subset(toxo.markers.celltype, cluster == "GM-Mac")
-nrow(toxo.markers.MAC)
-nrow(toxo.markers.DC)
+```
 
-FeaturePlot(se.toxo, features = rownames(toxo.markers.MAC))
+```{r, make list/dataframe with count for each allocation per cluster}
 
-png("~/t.gondi_dc/res/figures/fig5/tx_macs-enriched.png", width = 30, height= 20, res = 600, units = "cm")
-VlnPlot(se.toxo.cell, features = rownames(toxo.markers.MAC)[c(1,14,14,38)], group.by = "mus_celltypes",  ncol = 2, cols = c("turquoise4", "mediumorchid4"))
+cnt_allo_c1 <- deg_t.gondii_allo_c1 %>% 
+  group_by(hyperlopet_allocation) %>%
+  summarise(no_rows = length(hyperlopet_allocation))
+cnt_allo_c1$fraction <- cnt_allo_c1$no_rows/sum(cnt_allo_c1$no_rows)
+cnt_allo_c1$cluster <- "Tg 1"
+
+cnt_allo_c2 <- deg_t.gondii_allo_c2 %>% 
+group_by(hyperlopet_allocation) %>%
+  summarise(no_rows = length(hyperlopet_allocation))
+cnt_allo_c2$fraction <- cnt_allo_c2$no_rows/sum(cnt_allo_c2$no_rows)
+cnt_allo_c2$cluster <- "Tg 2"
+
+cnt_allo_c3 <- deg_t.gondii_allo_c3 %>% 
+group_by(hyperlopet_allocation) %>%
+  summarise(no_rows = length(hyperlopet_allocation))
+cnt_allo_c3$fraction <- cnt_allo_c3$no_rows/sum(cnt_allo_c3$no_rows)
+cnt_allo_c3$cluster <- "Tg 3"
+
+cnt_allo_c4 <- deg_t.gondii_allo_c4 %>% 
+group_by(hyperlopet_allocation) %>%
+  summarise(no_rows = length(hyperlopet_allocation))
+cnt_allo_c4$fraction <- cnt_allo_c4$no_rows/sum(cnt_allo_c4$no_rows)
+cnt_allo_c4$cluster <- "Tg 4"
+
+cnt_allo_c5 <- deg_t.gondii_allo_c5 %>% 
+group_by(hyperlopet_allocation) %>%
+  summarise(no_rows = length(hyperlopet_allocation))
+cnt_allo_c5$fraction <- cnt_allo_c5$no_rows/sum(cnt_allo_c5$no_rows)
+cnt_allo_c5$cluster <- "Tg 5"
+
+cnt_allo <- rbind(cnt_allo_c1, cnt_allo_c2, cnt_allo_c3, cnt_allo_c4, cnt_allo_c5)
+cnt_allo <- cnt_allo[-c(which(cnt_allo$hyperlopet_allocation %in% c("31.508693","20.864923","49.161826"))),]
+
+cnt_allo$fraction_1 <- NULL
+
+pdf("~/t.gondi_dc/res/figures/fig3/allocations_GEX_fractions.pdf")
+ggplot(cnt_allo, aes(hyperlopet_allocation, fraction^(1/3), color = cluster)) + #Cube root transformation as it is the best fit for our data without turning into negative values 
+  geom_point(aes(size=fraction)) +
+  scale_color_manual(values = c("#F6511D", "#FFB400", "#00A6ED", "#551A8B", "#698B69")) +
+  #theme(axis.text.x = element_text(angle = 90, hjust = 0.95, vjust = 0.2))
+  coord_flip() + 
+  theme_classic() +
+  ylab("fraction^1/3") + 
+  xlab("hyperlopet allocation")
 dev.off()
 
-png("~/t.gondi_dc/res/figures/fig5/tx_dc-enriched.png", width = 30, height= 10, res = 600, units = "cm")
-VlnPlot(se.toxo.cell, features = toxo.markers.DC$gene , group.by = "mus_celltypes", ncol = 2, cols = c("turquoise4", "mediumorchid4"))
+cnt_allo_c1[which(cnt_allo_c1$fraction == max(cnt_allo_c1$fraction)),] #plot dense granules for Tg1
+cnt_allo_c2[which(cnt_allo_c2$fraction == max(cnt_allo_c2$fraction)),] #plot cytosol + nucleus for Tg2 
+cnt_allo_c3[which(cnt_allo_c3$fraction == max(cnt_allo_c3$fraction)),] #plot cytosol for Tg3 
+cnt_allo_c4[which(cnt_allo_c4$fraction == max(cnt_allo_c4$fraction)),] #plot dense granules for Tg4 
+cnt_allo_c5[which(cnt_allo_c5$fraction == max(cnt_allo_c5$fraction)),] #plot rhoptries for Tg 5
+
+```
+
+```{r, change hmat_function to include allocations as a subset, fig.width= 200, fig.height= 20}
+
+t_hmat <- function(hmat, seed, show_allocation = F, allocation)  {
+  
+  seed$ensembl_gene_id <- gsub("_", "-",seed$ensembl_gene_id)
+  seed <- subset(seed, seed$ensembl_gene_id %in% intersect(rownames(hmat), seed$ensembl_gene_id))
+  hmat_rop <- hmat[seed$ensembl_gene_id,]
+  
+ifelse(show_allocation, yes = 
+           hmat_new <- hmat_rop[seed$hyperlopet_allocation %in% allocation,]
+         , no = hmat_new <- hmat_rop)
+
+seed <- subset(seed, seed$ensembl_gene_id %in% intersect(rownames(hmat_new), seed$ensembl_gene_id))
+rownames(hmat_new) <- paste(seed$ensembl_gene_id, "::",seed$external_gene_name)
+ 
+  p <- pheatmap(t(hmat_new), fontsize_row = 8, cellwidth = 15, clustering_distance_cols = "correlation", breaks = seq(-max(abs(hmat_rop)), max(abs(hmat_rop)), length.out = 1000), color = colorRampPalette(c("#660156","#21908C", "white", "#FFF68F", "#FFD700"))(1001), angle_col = "45", cluster_rows = F)
+  
+  return(p)
+}
+
+
+t_hmat(hmat_m, seed = deg_t.gondii_allo, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[13])
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c5, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[19])
+##select only genes with several genes in this location and move the remaining one's to the supplement
+
+##supplementary 8
+
+pdf("~/t.gondi_dc/res/figures/supplementary/deg_t.gondii_clusters.pdf", width = 300, height = 200)
+t_hmat(hmat_t, seed = deg_t.gondii)
+dev.off()
+
+#2,3 -> apical 1 + 2
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_apical1_2.pdf", width = 10, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(2,3)])
+dev.off()
+#4 -> apicoplast 
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_apicoplast.pdf", width = 10, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[4])
+dev.off()
+#5 -> cytosol
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_cytosol.pdf", width = 10, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(5)])
+dev.off()
+#6 -> dense granules
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_dense_granules.pdf", width = 10, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(6)])
+dev.off()
+#8 -> golgi (maybe remove)
+pdf("~/t.gondi_dc/res/figures/fig3/deg_golgi.pdf", width = 10, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(8)])
+dev.off()
+#9 -> IMC
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_IMC.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(9)])
+dev.off()
+#10 -> micronemes
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_micronemes.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(10)])
+dev.off()
+#12 -> mitochondria
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_mito.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(12)])
+dev.off()
+#13 -> nucleus - chromatin
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_nuc_chr.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(13)])
+dev.off()
+#15 -> PM - integral
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_PM_integral.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(15)])
+dev.off()
+#16 -> PM - peripheral 1
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_PM_peripheral.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(16)])
+dev.off()
+#18 -> rhoptries 1
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_rhoptries_1.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(18)])
+dev.off()
+#19 -> rhoptries 2
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_rhoptries_2.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(19)])
+dev.off()
+#20 -> tubulin cytoskeleton
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_cytoskeleton.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(20)])
+dev.off()
+#21 -> unknown
+pdf("~/t.gondi_dc/res/figures/fig3/deg_c4_unknown.pdf", width = 12, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation = levels(deg_t.gondii_allo$hyperlopet_allocation)[c(21)])
 dev.off()
 
 ```
+
+```{r, look at gene expression of remaining clusters, width = 100, height = 10}
+
+
+pdf("~/t.gondi_dc/res/figures/fig3/tg_c1_dense_granules.pdf", width = 70, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c1, show_allocation = T, allocation =  cnt_allo_c1[which(cnt_allo_c1$fraction == max(cnt_allo_c1$fraction)),]$hyperlopet_allocation) #dominant allocation of marker genes 
+dev.off()
+pdf("~/t.gondi_dc/res/figures/fig3/tg_c2_cytosol_nuc.pdf", width = 70, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c2, show_allocation = T, allocation =  cnt_allo_c2[which(cnt_allo_c2$fraction == max(cnt_allo_c2$fraction)),]$hyperlopet_allocation)
+dev.off()
+pdf("~/t.gondi_dc/res/figures/fig3/tg_c3_cytosol.pdf", width = 70, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c3, show_allocation = T, allocation =  cnt_allo_c3[which(cnt_allo_c3$fraction == max(cnt_allo_c3$fraction)),]$hyperlopet_allocation)
+dev.off()
+pdf("~/t.gondi_dc/res/figures/fig3/tg_c4_dense_granules.pdf", width = 70, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c4, show_allocation = T, allocation =  cnt_allo_c4[which(cnt_allo_c4$fraction == max(cnt_allo_c4$fraction)),]$hyperlopet_allocation)
+dev.off()
+pdf("~/t.gondi_dc/res/figures/fig3/tg_c5_rhoptries_1.pdf", width = 70, height = 5)
+t_hmat(hmat_m, seed = deg_t.gondii_allo_c5, show_allocation = T, allocation =  cnt_allo_c5[which(cnt_allo_c5$fraction == max(cnt_allo_c5$fraction)),]$hyperlopet_allocation)
+dev.off()
+
+```
+
+
+
 

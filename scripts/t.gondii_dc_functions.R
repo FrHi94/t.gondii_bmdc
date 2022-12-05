@@ -1,10 +1,3 @@
-
-##average heatmap function 
-
-#data refers to a sc expression matrix you want to perform the analysis on 
-#meta refers to the data you want to group your data by (e.g. clusters, celltypes, etc.)
-#cond refers to the conditions you would like to display in the heatmap (numbers 1:16) (default is all conditions)
-#seed refers to the features you would like to include (charactervector of genes to display)
 hmat_mousetoxo <- function(data,meta) {
   
   
@@ -16,11 +9,12 @@ hmat_mousetoxo <- function(data,meta) {
   average_data <- t(average_data)
   phmat1 <- t(scale(t(average_data)))
   #create matrix for averaged expression-values between -1.5 and 1.5 (this can be adjusted) (clipping the values)
- #phmat1[phmat1> 1.5] <- 1.5
- # phmat1[phmat1 < -1.5] <- -1.5
+  #phmat1[phmat1> 1.5] <- 1.5
+  # phmat1[phmat1 < -1.5] <- -1.5
   return(phmat1)
   
 }
+
 
 
 phmat_simple <- function(hmat, seed, cond) {
@@ -48,9 +42,11 @@ phmat_original <- function(hmat, seed, cond) {
            angle_col = "45"
   )
 }
-## Interaction plots
 
-f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65, m.col= "#5b83a1", t.col){
+
+###co-expression network Toxoplasma 
+
+f.KNN_toxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65){
   
   # We first filter down the Top Interactors tables to the chosen number of interactors.
   TopIntGenes2 = TopIntGenes[1:K,]
@@ -90,14 +86,13 @@ f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65, m.col= "#5b83a
   #V(gr.x)$label.dist = c(-0.5)
   #V(gr.x)$label.degree = pi/6
   E(gr.x)$arrow.size = 0.5
-  E(gr.x)$width = abs(weights)*2
+  E(gr.x)$width = abs(weights)*4
   V(gr.x)$name = make.names(V(gr.x)$name)
   #V(gr.x)$color[V(gr.x)$name %in% make.names(PTG_12h_markers)] = "#66CCFF"
   #V(gr.x)$color[V(gr.x)$name %in% make.names(LDM_12h_markers)] = "yellow3"
-  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = m.col
-  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = t.col
-  V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = m.col
-  V(gr.x)$frame.color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = t.col
+  V(gr.x)$color[V(gr.x)$name %in% make.names(crisp_INF_vs_naive$ensembl_gene_id)] = "#f4d35e" 
+  #V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo)[colnames(TopIntGenes_toxo) != crisp_INF_vs_naive$ensembl_gene_id])] = "grey"
+  V(gr.x)$color[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "#cc66cc"
   #V(gr.x)$shape[V(gr.x)$name %in% make.names(colnames(TopIntGenes_mouse))] = "circle"
   #V(gr.x)$shape[V(gr.x)$name %in% make.names(colnames(TopIntGenes_toxo))] = "circle"
   
@@ -106,13 +101,13 @@ f.KNN_mousetoxo = function(seed, K=3, Nsteps=2, cutoffValue=0.65, m.col= "#5b83a
   for(ii in 1:ncol(dist.x)){dist.x[ii,ii] = NA}
   dist.x = dist.x[rownames(dist.x)%in%seed,]
   dist.x2 = apply(FUN=min, X=dist.x, MARGIN=2,na.rm=T)
-  V(gr.x)$size = 2+10*(2^-dist.x2[V(gr.x)$name])
+  V(gr.x)$size = 2+5*(2^-dist.x2[V(gr.x)$name])
   
   
   # Color for interactions with positive correlations is set to red. 
   # Negative, if such exist, are colored blue.
-  E(gr.x)$color[weights>0] = "#CC3333"
-  E(gr.x)$color[weights<0] = "blue"
+  E(gr.x)$color[weights>0] = "#b86664"
+  E(gr.x)$color[weights<0] = "grey"
   
   # We can also map information to colors and shape of vertices.
   # There are two obvious options: 
@@ -157,26 +152,4 @@ subgraph_mtoxo = function(gr, goi){
   par(mar=c(0,0,0,0)+.1)
   plot(gr.x2, asp = 0) 
   return(gr.x2)
-}
-
-
-## Look at expression of cdks/cyclins across clusters /cell_class
-
-#cluster = vector with cell and clusterannotation/celltype annotation or annotation of interest
-#gene = vector with expression values for a gene of interest in the data
-#dataset = which dataset to use (dc, dc+mac,mac)
-#cols = colors used for the clusters 
-
-CyCDK_expr <- function(object, clust, gene, cols){
-  #cyclin B
-  gg <- data.frame(cluster = clust, val = object@assays$SCT@data[gene,])
-  # x should be the continuous variable and y the categorical group variable
-  # You can color the ridges using any variable you want
-  gg <- ggplot(gg, aes(x = val, y = cluster, fill = cluster)) +
-    geom_density_ridges(alpha = 0.8) +# Set transparency
-    scale_fill_manual(values = cols) +
-    theme_ridges() +
-    labs(x = "Expression value", y = "Cluster identity", fill = "Cluster identity") + 
-    ggtitle(gene)
-  return(gg)
 }

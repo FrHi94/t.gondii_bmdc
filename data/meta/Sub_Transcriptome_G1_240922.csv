@@ -1,0 +1,697 @@
+ensembl_gene_id,Product.Description,Gene.Type,Input.ID,external_gene_name
+TGME49-201180,hypothetical protein,protein coding gene,TGME49_001180,N/A
+TGME49-201270,hypothetical protein,protein coding gene,TGME49_001270,N/A
+TGME49-201380,chorismate synthase, putative,protein coding gene,TGME49_001380,N/A
+TGME49-201780,microneme protein MIC2,protein coding gene,TGME49_001780,MIC2
+TGME49-201870,tetratricopeptide repeat-containing protein,protein coding gene,TGME49_001870,N/A
+TGME49-202010,hypothetical protein,protein coding gene,TGME49_002010,N/A
+TGME49-202180,hypothetical protein,protein coding gene,TGME49_002180,N/A
+TGME49-202230,histone deacetylase HDAC5,protein coding gene,TGME49_002230,HDAC5
+TGME49-202250,hypothetical protein,protein coding gene,TGME49_002250,N/A
+TGME49-202280,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_002280,N/A
+TGME49-202290,membrane protein, putative,protein coding gene,TGME49_002290,N/A
+TGME49-202300,inosine triphosphate pyrophosphatase, putative,protein coding gene,TGME49_002300,N/A
+TGME49-202310,O-sialoglycoprotein endopeptidase,protein coding gene,TGME49_002310,N/A
+TGME49-202350,50S ribosomal protein L21, putative,protein coding gene,TGME49_002350,N/A
+TGME49-202360,methylase, putative,protein coding gene,TGME49_002360,N/A
+TGME49-202370,T-complex protein 1, epsilon subunit (TCP-1-epsilon), putative,protein coding gene,TGME49_002370,N/A
+TGME49-202440,hypothetical protein,protein coding gene,TGME49_002440,N/A
+TGME49-202610,protein phosphatase 2C domain-containing protein,protein coding gene,TGME49_002610,N/A
+TGME49-202750,3' exoribonuclease family, domain 1 domain-containing protein,protein coding gene,TGME49_002750,N/A
+TGME49-202800,cytochrome c oxidase assembly protein COX11 protein, putative,protein coding gene,TGME49_002800,N/A
+TGME49-203020,ribosome biogenesis GTPase Der protein,protein coding gene,TGME49_003020,N/A
+TGME49-203050,AP2 domain transcription factor AP2VIIa-6,protein coding gene,TGME49_003050,AP2VIIA6
+TGME49-203060,hypothetical protein,protein coding gene,TGME49_003060,N/A
+TGME49-203170,OB-fold nucleic acid binding domain-containing protein,protein coding gene,TGME49_003170,N/A
+TGME49-203370,hypothetical protein,protein coding gene,TGME49_003370,N/A
+TGME49-203380,DnaJ domain-containing protein,protein coding gene,TGME49_003380,N/A
+TGME49-203600,hypothetical protein,protein coding gene,TGME49_003600,N/A
+TGME49-203620,hypothetical protein,protein coding gene,TGME49_003620,N/A
+TGME49-203710,AP2 domain transcription factor AP2VIIa-4,protein coding gene,TGME49_003710,AP2VIIA4
+TGME49-203750,hypothetical protein,protein coding gene,TGME49_003750,N/A
+TGME49-203760,hypothetical protein,protein coding gene,TGME49_003760,N/A
+TGME49-204050,subtilisin SUB1,protein coding gene,TGME49_004050,SUB1
+TGME49-204540,DUF367 domain-containing protein,protein coding gene,TGME49_004540,N/A
+TGME49-204550,hypothetical protein,protein coding gene,TGME49_004550,N/A
+TGME49-205060,hypothetical protein,protein coding gene,TGME49_005060,N/A
+TGME49-205190,hypothetical protein,protein coding gene,TGME49_005190,N/A
+TGME49-205200,hypothetical protein,protein coding gene,TGME49_005200,N/A
+TGME49-205240,cleft lip and palate transmembrane protein 1 (clptm1) protein,protein coding gene,TGME49_005240,N/A
+TGME49-205390,hypothetical protein,protein coding gene,TGME49_005390,N/A
+TGME49-205470,translation elongation factor 2 family protein, putative,protein coding gene,TGME49_005470,N/A
+TGME49-205480,IMC subcompartment protein ISP4,protein coding gene,TGME49_005480,ISP4
+TGME49-206300,hypothetical protein,protein coding gene,TGME49_006300,N/A
+TGME49-206330,PHD-finger domain-containing protein,protein coding gene,TGME49_006330,N/A
+TGME49-206360,peptidyl-tRNA hydrolase domain-containing protein,protein coding gene,TGME49_006360,N/A
+TGME49-206510,toxolysin TLN4,protein coding gene,TGME49_006510,TLN4
+TGME49-207060,ribonucleoside-diphosphate reductase small subunit,protein coding gene,TGME49_007060,N/A
+TGME49-207640,isoleucyl-tRNA synthetase family protein,protein coding gene,TGME49_007640,N/A
+TGME49-207710,phosphatidylinositol synthase, putative,protein coding gene,TGME49_007710,N/A
+TGME49-207720,hypothetical protein,protein coding gene,TGME49_007720,N/A
+TGME49-207750,hypothetical protein,protein coding gene,TGME49_007750,N/A
+TGME49-207800,hypothetical protein,protein coding gene,TGME49_007800,N/A
+TGME49-207950,hypothetical protein,protein coding gene,TGME49_007950,N/A
+TGME49-208030,microneme protein MIC4,protein coding gene,TGME49_008030,MIC4
+TGME49-208200,PHD-finger domain-containing protein,protein coding gene,TGME49_008200,N/A
+TGME49-208360,hypothetical protein,protein coding gene,TGME49_008360,N/A
+TGME49-208450,protease inhibitor PI2,protein coding gene,TGME49_008450,PI2
+TGME49-208540,DEAD/DEAH box helicase domain-containing protein,protein coding gene,TGME49_008540,N/A
+TGME49-208560,carrier superfamily protein,protein coding gene,TGME49_008560,N/A
+TGME49-208570,ubiquitin conjugating enzyme E2, putative,protein coding gene,TGME49_008570,N/A
+TGME49-208730,microneme protein, putative,protein coding gene,TGME49_008730,N/A
+TGME49-208850,SAG-related sequence SRS11,protein coding gene,TGME49_008850,SAG2B
+TGME49-209010,elongation factor TS protein,protein coding gene,TGME49_009010,N/A
+TGME49-209020,hypothetical protein,protein coding gene,TGME49_009020,N/A
+TGME49-209060,thrombospondin type 1 domain-containing protein,protein coding gene,TGME49_009060,N/A
+TGME49-209240,RNA methyltransferase,protein coding gene,TGME49_009240,N/A
+TGME49-209440,hypothetical protein,protein coding gene,TGME49_009440,N/A
+TGME49-209550,hypothetical protein,protein coding gene,TGME49_009550,N/A
+TGME49-209570,suppressor of mitotic defects protein,protein coding gene,TGME49_009570,XPMC2
+TGME49-209630,hypothetical protein,protein coding gene,TGME49_009630,N/A
+TGME49-209640,hypothetical protein,protein coding gene,TGME49_009640,N/A
+TGME49-209680,hypothetical protein,protein coding gene,TGME49_009680,N/A
+TGME49-209710,ribosomal protein RPL28,protein coding gene,TGME49_009710,RPl28
+TGME49-209790,radical SAM domain-containing protein,protein coding gene,TGME49_009790,N/A
+TGME49-210230,hypothetical protein,protein coding gene,TGME49_010230,N/A
+TGME49-210310,hypothetical protein,protein coding gene,TGME49_010310,N/A
+TGME49-210450,hypothetical protein,protein coding gene,TGME49_010450,N/A
+TGME49-210700,hypothetical protein,protein coding gene,TGME49_010700,N/A
+TGME49-210750,Ferredoxin-fold anticodon binding domain-containing protein,protein coding gene,TGME49_010750,N/A
+TGME49-211310,hypothetical protein,protein coding gene,TGME49_011310,N/A
+TGME49-211330,methionine aminopeptidase,protein coding gene,TGME49_011330,N/A
+TGME49-211400,DEAD/DEAH box helicase domain-containing protein,protein coding gene,TGME49_011400,N/A
+TGME49-211410,translation initiation factor sui1 protein,protein coding gene,TGME49_011410,N/A
+TGME49-211460,hypothetical protein,protein coding gene,TGME49_011460,N/A
+TGME49-211470,Fcf2 pre-rRNA processing protein,protein coding gene,TGME49_011470,N/A
+TGME49-211860,hypothetical protein,protein coding gene,TGME49_011860,N/A
+TGME49-211870,LSU ribosomal protein L18P, putative,protein coding gene,TGME49_011870,N/A
+TGME49-212250,XPG N-terminal domain-containing protein,protein coding gene,TGME49_012250,N/A
+TGME49-212300,hypothetical protein,protein coding gene,TGME49_012300,N/A
+TGME49-213570,hypothetical protein,protein coding gene,TGME49_013570,N/A
+TGME49-213650,ATP-binding domain 1 family protein,protein coding gene,TGME49_013650,N/A
+TGME49-213970,ribosomal RNA small subunit methyltransferase B, putative,protein coding gene,TGME49_013970,N/A
+TGME49-214170,hypothetical protein,protein coding gene,TGME49_014170,N/A
+TGME49-214310,hypothetical protein,protein coding gene,TGME49_014310,N/A
+TGME49-214320,facilitative glucose transporter GT1,protein coding gene,TGME49_014320,GT1
+TGME49-214540,hypothetical protein,protein coding gene,TGME49_014540,N/A
+TGME49-214580,tetratricopeptide repeat-containing protein,protein coding gene,TGME49_014580,N/A
+TGME49-214780,hydrolase, NUDIX family protein,protein coding gene,TGME49_014780,N/A
+TGME49-214870,ribosomal protein L9, N-terminal domain-containing protein,protein coding gene,TGME49_014870,N/A
+TGME49-214940,MIC2-associated protein M2AP,protein coding gene,TGME49_014940,N/A
+TGME49-215030,hypothetical protein,protein coding gene,TGME49_015030,N/A
+TGME49-215160,hypothetical protein,protein coding gene,TGME49_015160,N/A
+TGME49-215360,hypothetical protein,protein coding gene,TGME49_015360,N/A
+TGME49-215400,RNA recognition motif-containing protein,protein coding gene,TGME49_015400,N/A
+TGME49-215440,WWE domain-containing protein,protein coding gene,TGME49_015440,N/A
+TGME49-215560,histone arginine methyltransferase PRMT5,protein coding gene,TGME49_015560,PRMT5
+TGME49-215750,cytidine and deoxycytidylate deaminase zinc-binding region domain-containing protein,protein coding gene,TGME49_015750,N/A
+TGME49-215930,mediator complex subunit MED21,protein coding gene,TGME49_015930,MED21
+TGME49-216050,tetratricopeptide repeat-containing protein,protein coding gene,TGME49_016050,N/A
+TGME49-216120,hypothetical protein,protein coding gene,TGME49_016120,N/A
+TGME49-216390,RNA methyltransferase, TrmH family protein,protein coding gene,TGME49_016390,N/A
+TGME49-216590,HEAT repeat-containing protein,protein coding gene,TGME49_016590,N/A
+TGME49-216760,RNA pseudouridine synthase superfamily protein,protein coding gene,TGME49_016760,N/A
+TGME49-216820,transporter, major facilitator family protein,protein coding gene,TGME49_016820,N/A
+TGME49-216830,DTW domain-containing protein,protein coding gene,TGME49_016830,N/A
+TGME49-216850,hypothetical protein,protein coding gene,TGME49_016850,N/A
+TGME49-216870,DNA excision repair helicase,protein coding gene,TGME49_016870,N/A
+TGME49-216950,helicase,protein coding gene,TGME49_016950,N/A
+TGME49-217440,HCNGP family protein,protein coding gene,TGME49_017440,N/A
+TGME49-217450,general transcription factor IIH polypeptide 5 GTF2H5,protein coding gene,TGME49_017450,GTF2H5
+TGME49-217460,glutaminyl-tRNA synthetase (GlnRS),protein coding gene,TGME49_017460,N/A
+TGME49-217470,hypothetical protein,protein coding gene,TGME49_017470,N/A
+TGME49-217640,hypothetical protein,protein coding gene,TGME49_017640,N/A
+TGME49-217692,hypothetical protein,protein coding gene,TGME49_017690,N/A
+TGME49-217750,hypothetical protein,protein coding gene,TGME49_017750,N/A
+TGME49-218230,histone lysine methyltransferase, SET, putative,protein coding gene,TGME49_018230,N/A
+TGME49-218280,eukaryotic porin, putative,protein coding gene,TGME49_018280,N/A
+TGME49-218520,microneme protein MIC6,protein coding gene,TGME49_018520,MIC6
+TGME49-218730,hypothetical protein,protein coding gene,TGME49_018730,N/A
+TGME49-218780,phosphoserine aminotransferase, putative,protein coding gene,TGME49_018780,N/A
+TGME49-218840,mutS domain protein,protein coding gene,TGME49_018840,MSH1
+TGME49-218950,hypothetical protein,protein coding gene,TGME49_018950,N/A
+TGME49-219100,cyclin-dependent kinase regulatory subunit protein,protein coding gene,TGME49_019100,N/A
+TGME49-219150,zinc finger, zz type domain-containing protein,protein coding gene,TGME49_019150,N/A
+TGME49-220140,EF hand domain-containing protein,protein coding gene,TGME49_020140,N/A
+TGME49-220350,tRNA ligases class II (D, K and N) domain-containing protein,protein coding gene,TGME49_020350,N/A
+TGME49-220450,ribonuclease HI protein,protein coding gene,TGME49_020450,N/A
+TGME49-220540,hypothetical protein,protein coding gene,TGME49_020540,N/A
+TGME49-220600,hypothetical protein,protein coding gene,TGME49_020600,N/A
+TGME49-220890,hypothetical protein,protein coding gene,TGME49_020890,N/A
+TGME49-220940,ribosomal RNA methyltransferase (FtsJ) family protein,protein coding gene,TGME49_020940,N/A
+TGME49-221320,acetyl-CoA carboxylase ACC1,protein coding gene,TGME49_021320,ACC1
+TGME49-221350,Ctr copper transporter family protein,protein coding gene,TGME49_021350,N/A
+TGME49-221590,dual specificity phosphatase, catalytic domain-containing protein,protein coding gene,TGME49_021590,N/A
+TGME49-221970,hypothetical protein,protein coding gene,TGME49_021970,N/A
+TGME49-222000,brix domain-containing protein,protein coding gene,TGME49_022000,N/A
+TGME49-222020,phosphoglycerate kinase PGKII,protein coding gene,TGME49_022020,PGKII
+TGME49-222040,Ran-interacting Mog1 protein,protein coding gene,TGME49_022040,N/A
+TGME49-222060,hypothetical protein,protein coding gene,TGME49_022060,N/A
+TGME49-222070,elongation factor Tu GTP binding domain-containing protein,protein coding gene,TGME49_022070,N/A
+TGME49-222180,hypothetical protein,protein coding gene,TGME49_022180,N/A
+TGME49-222192,hypothetical protein,protein coding gene,TGME49_022190,N/A
+TGME49-222230,hypothetical protein,protein coding gene,TGME49_022230,N/A
+TGME49-222860,eukaryotic translation initiation factor, putative,protein coding gene,TGME49_022860,N/A
+TGME49-222930,hypothetical protein,protein coding gene,TGME49_022930,N/A
+TGME49-223060,MORN repeat-containing protein,protein coding gene,TGME49_023060,N/A
+TGME49-223130,hypothetical protein,protein coding gene,TGME49_023130,N/A
+TGME49-223140,tRNA binding domain-containing protein,protein coding gene,TGME49_023140,N/A
+TGME49-223258,hypothetical protein,protein coding gene,TGME49_023260,N/A
+TGME49-223262,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_023260,N/A
+TGME49-223550,hypothetical protein,protein coding gene,TGME49_023550,N/A
+TGME49-223560,hypothetical protein,protein coding gene,TGME49_023560,N/A
+TGME49-223672,3'(2'),5'-bisphosphate nucleotidase,protein coding gene,TGME49_023670,N/A
+TGME49-223710,tetratricopeptide repeat-containing protein,protein coding gene,TGME49_023710,N/A
+TGME49-224290,DHHC zinc finger domain-containing protein,protein coding gene,TGME49_024290,N/A
+TGME49-224590,DNA-directed RNA polymerase III POLR3C,protein coding gene,TGME49_024590,POLR3C
+TGME49-224600,GTP binding protein,protein coding gene,TGME49_024600,N/A
+TGME49-224620,hypothetical protein,protein coding gene,TGME49_024620,N/A
+TGME49-224860,exosome component 2, putative,protein coding gene,TGME49_024860,N/A
+TGME49-224950,calcium-dependent protein kinase CDPK5,protein coding gene,TGME49_024950,CDPK5
+TGME49-225350,hypothetical protein,protein coding gene,TGME49_025350,N/A
+TGME49-225430,Ras-related GTP binding A family protein,protein coding gene,TGME49_025430,N/A
+TGME49-225500,hypothetical protein,protein coding gene,TGME49_025500,N/A
+TGME49-225580,proteasome (prosome, macropain) 26S subunit, non-ATPase, 9, putative,protein coding gene,TGME49_025580,N/A
+TGME49-225710,mitochondrial inner membrane translocase subunit TIM17, putative,protein coding gene,TGME49_025710,N/A
+TGME49-225880,UDP-glucose 4-epimerase,protein coding gene,TGME49_025880,N/A
+TGME49-225990,acyl transferase domain-containing protein,protein coding gene,TGME49_025990,N/A
+TGME49-226260,hypothetical protein,protein coding gene,TGME49_026260,N/A
+TGME49-226380,hypothetical protein,protein coding gene,TGME49_026380,N/A
+TGME49-226390,hypothetical protein,protein coding gene,TGME49_026390,N/A
+TGME49-226420,peptidase family M3 protein,protein coding gene,TGME49_026420,N/A
+TGME49-226470,hypothetical protein,protein coding gene,TGME49_026470,N/A
+TGME49-226520,hypothetical protein,protein coding gene,TGME49_026520,N/A
+TGME49-226550,TBC domain containing protein,protein coding gene,TGME49_026550,N/A
+TGME49-226560,zinc finger (CCCH type) motif-containing protein,protein coding gene,TGME49_026560,N/A
+TGME49-226890,hypothetical protein,protein coding gene,TGME49_026890,N/A
+TGME49-227010,rhoptry kinase family protein ROP30,protein coding gene,TGME49_027010,ROP30
+TGME49-227140,hypothetical protein,protein coding gene,TGME49_027140,N/A
+TGME49-227300,hypothetical protein,protein coding gene,TGME49_027300,N/A
+TGME49-227350,hypothetical protein,protein coding gene,TGME49_027350,N/A
+TGME49-227390,hypothetical protein,protein coding gene,TGME49_027390,N/A
+TGME49-227430,transmembrane amino acid transporter protein,protein coding gene,TGME49_027430,N/A
+TGME49-227440,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_027440,N/A
+TGME49-227660,DNA methyltransferase 2, putative,protein coding gene,TGME49_027660,N/A
+TGME49-227952,14-3-3 superfamily protein,protein coding gene,TGME49_027950,N/A
+TGME49-227970,histone family DNA-binding protein,protein coding gene,TGME49_027970,N/A
+TGME49-228040,PPIC-type PPIASE domain-containing protein,protein coding gene,TGME49_028040,N/A
+TGME49-228180,cytochrome C oxidase assembly factor COX15, putative,protein coding gene,TGME49_028180,N/A
+TGME49-228250,elongation factor Tu GTP binding domain-containing protein,protein coding gene,TGME49_028250,N/A
+TGME49-228380,hypothetical protein,protein coding gene,TGME49_028380,N/A
+TGME49-228490,hypothetical protein,protein coding gene,TGME49_028490,N/A
+TGME49-229930,p25-alpha family protein,protein coding gene,TGME49_029930,N/A
+TGME49-230160,hypothetical protein,protein coding gene,TGME49_030160,N/A
+TGME49-230555,adenylate and guanylate cyclase catalytic domain-containing protein,protein coding gene,TGME49_030550,N/A
+TGME49-230580,hypothetical protein,protein coding gene,TGME49_030580,N/A
+TGME49-230630,hypothetical protein,protein coding gene,TGME49_030630,N/A
+TGME49-230840,hypothetical protein,protein coding gene,TGME49_030840,N/A
+TGME49-231020,hypothetical protein,protein coding gene,TGME49_031020,N/A
+TGME49-231120,ribosomal protein S11, putative,protein coding gene,TGME49_031120,N/A
+TGME49-231150,hypothetical protein,protein coding gene,TGME49_031150,N/A
+TGME49-231430,oligosaccharyl transferase stt3 protein, putative,protein coding gene,TGME49_031430,N/A
+TGME49-231460,hypothetical protein,protein coding gene,TGME49_031460,N/A
+TGME49-231910,ATP synthase F1 gamma subunit,protein coding gene,TGME49_031910,N/A
+TGME49-231960,omega secalin, putative,protein coding gene,TGME49_031960,N/A
+TGME49-232000,hypothetical protein,protein coding gene,TGME49_032000,N/A
+TGME49-232100,RAP domain-containing protein,protein coding gene,TGME49_032100,N/A
+TGME49-232380,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_032380,N/A
+TGME49-232600,phospholipase, patatin family protein,protein coding gene,TGME49_032600,N/A
+TGME49-232640,RNA 2'-phosphotransferase, Tpt1/KptA family protein,protein coding gene,TGME49_032640,N/A
+TGME49-232670,hypothetical protein,protein coding gene,TGME49_032670,N/A
+TGME49-232750,23S rRNA (adenine(1618)-N(6))-methyltransferase, putative,protein coding gene,TGME49_032750,N/A
+TGME49-232815,Erv1 / Alr family protein,protein coding gene,TGME49_032810, TGME49_032820,N/A
+TGME49-233140,deoxyuridine 5'-triphosphate nucleotidohydrolase, putative,protein coding gene,TGME49_033140,N/A
+TGME49-233340,hypothetical protein,protein coding gene,TGME49_033340,N/A
+TGME49-233380,hypothetical protein,protein coding gene,TGME49_033380,N/A
+TGME49-233450,SAG-related sequence SRS29A,protein coding gene,TGME49_033450,SRS1
+TGME49-233470,hypothetical protein,protein coding gene,TGME49_033470,N/A
+TGME49-233830,hypothetical protein,protein coding gene,TGME49_033830,N/A
+TGME49-233870,hypothetical protein,protein coding gene,TGME49_033870,N/A
+TGME49-233930,CAF1 family ribonuclease,protein coding gene,TGME49_033930,N/A
+TGME49-234180,hypothetical protein,protein coding gene,TGME49_034180,N/A
+TGME49-234190,serine hydroxymethyltransferase 2, putative,protein coding gene,TGME49_034190,N/A
+TGME49-234380,hypothetical protein,protein coding gene,TGME49_034380,N/A
+TGME49-234390,hypothetical protein,protein coding gene,TGME49_034390,N/A
+TGME49-234490,kelch repeat-containing protein,protein coding gene,TGME49_034490,N/A
+TGME49-235140,hypothetical protein,protein coding gene,TGME49_035140,N/A
+TGME49-235350,cwfj family protein,protein coding gene,TGME49_035350,N/A
+TGME49-235500,hypothetical protein,protein coding gene,TGME49_035500,N/A
+TGME49-235620,deoxyhypusine synthase,protein coding gene,TGME49_035620,N/A
+TGME49-235960,hypothetical protein,protein coding gene,TGME49_035960,N/A
+TGME49-236190,hypothetical protein,protein coding gene,TGME49_036190,N/A
+TGME49-236670,hypothetical protein,protein coding gene,TGME49_036670,N/A
+TGME49-236930,hypothetical protein,protein coding gene,TGME49_036930,N/A
+TGME49-236950,hypothetical protein,protein coding gene,TGME49_036950,N/A
+TGME49-237140,ethylene inducible protein, putative,protein coding gene,TGME49_037140,N/A
+TGME49-237230,hypothetical protein,protein coding gene,TGME49_037230,N/A
+TGME49-237600,Armadillo/beta-catenin family repeat-containing protein,protein coding gene,TGME49_037600,N/A
+TGME49-237890,calcium-dependent protein kinase CDPK4,protein coding gene,TGME49_037890,CDPK4
+TGME49-238940,GDP mannose 4,6-dehydratase, putative,protein coding gene,TGME49_038940,N/A
+TGME49-238950,fatty acyl-CoA desaturase, putative,protein coding gene,TGME49_038950,N/A
+TGME49-239010,hypothetical protein,protein coding gene,TGME49_039010,N/A
+TGME49-239250,diacylglycerol kinase, putative,protein coding gene,TGME49_039250,N/A
+TGME49-239270,hypothetical protein,protein coding gene,TGME49_039270,N/A
+TGME49-239290,hypothetical protein,protein coding gene,TGME49_039290,N/A
+TGME49-239590,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_039590,N/A
+TGME49-239810,hypothetical protein,protein coding gene,TGME49_039810,N/A
+TGME49-239890,SCP family extracellular subfamily protein,protein coding gene,TGME49_039890,N/A
+TGME49-240060,hypothetical protein,protein coding gene,TGME49_040060,N/A
+TGME49-240090,rhoptry kinase family protein ROP34, putative,protein coding gene,TGME49_040090,N/A
+TGME49-240400,hypothetical protein,protein coding gene,TGME49_040400,N/A
+TGME49-240410,protein kinase (incomplete catalytic triad),protein coding gene,TGME49_040410,N/A
+TGME49-240450,Maf family protein,protein coding gene,TGME49_040450,N/A
+TGME49-240510,hypothetical protein,protein coding gene,TGME49_040510,N/A
+TGME49-240600,chaperonin cpn60, putative,protein coding gene,TGME49_040600,N/A
+TGME49-240650,coatomer protein complex, subunit alpha, putative,protein coding gene,TGME49_040650,N/A
+TGME49-240660,hypothetical protein,protein coding gene,TGME49_040660,N/A
+TGME49-240840,histone lysine demethylase JmjC NO66,protein coding gene,TGME49_040840,N/A
+TGME49-242030,hypothetical protein,protein coding gene,TGME49_042030,N/A
+TGME49-242380,fatty acid elongase,protein coding gene,TGME49_042380,N/A
+TGME49-242415,histone lysine-specific demethylase,protein coding gene,TGME49_042420, TGME49_042410,LSD1
+TGME49-242460,mitochondrial carrier superfamily protein,protein coding gene,TGME49_042460,N/A
+TGME49-242580,iron only hydrogenase large subunit, c-terminal domain-containing protein,protein coding gene,TGME49_042580,N/A
+TGME49-242610,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_042610,N/A
+TGME49-242625,ATPase family associated with various cellular activities (AAA) subfamily protein,protein coding gene,TGME49_042630,N/A
+TGME49-243350,gamma-glutamyl hydrolase,protein coding gene,TGME49_043350,N/A
+TGME49-243430,OTU family cysteine protease,protein coding gene,TGME49_043430,N/A
+TGME49-243490,BCS1 family isoform 9, putative,protein coding gene,TGME49_043490,N/A
+TGME49-243530,pentatricopeptide repeat domain-containing protein,protein coding gene,TGME49_043530,N/A
+TGME49-243540,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_043540,N/A
+TGME49-243590,endonuclease/exonuclease/phosphatase family protein,protein coding gene,TGME49_043590,N/A
+TGME49-243760,hypothetical protein,protein coding gene,TGME49_043760,N/A
+TGME49-243930,hypothetical protein,protein coding gene,TGME49_043930,N/A
+TGME49-243950,prohibitin, putative,protein coding gene,TGME49_043950,N/A
+TGME49-244335,hypothetical protein,protein coding gene,TGME49_044330, TGME49_044340,N/A
+TGME49-244380,cactin,protein coding gene,TGME49_044380,N/A
+TGME49-244420,hypothetical protein,protein coding gene,TGME49_044420,N/A
+TGME49-244880,DNA-directed RNA polymerase I RPA1,protein coding gene,TGME49_044880,POLR1A
+TGME49-244910,MIZ/SP-RING zinc finger domain-containing protein,protein coding gene,TGME49_044910,N/A
+TGME49-245428,hypothetical protein,protein coding gene,TGME49_045430,N/A
+TGME49-245432,hypothetical protein,protein coding gene,TGME49_045430,N/A
+TGME49-245520,hypothetical protein,protein coding gene,TGME49_045520,N/A
+TGME49-245650,hypothetical protein,protein coding gene,TGME49_045650,N/A
+TGME49-245670,pyruvate dehydrogenase complex subunit PDH-E1Alpha,protein coding gene,TGME49_045670,PDHE1A
+TGME49-246475,hypothetical protein,protein coding gene,TGME49_046470,N/A
+TGME49-246630,DNA-directed RNA polymerase I RPA43,protein coding gene,TGME49_046630,RPA43
+TGME49-246910,histone lysine methyltransferase, SET, putative,protein coding gene,TGME49_046910,N/A
+TGME49-246978,hypothetical protein,protein coding gene,TGME49_046980,N/A
+TGME49-246982,hypothetical protein,protein coding gene,TGME49_046980,N/A
+TGME49-247320,hypothetical protein,protein coding gene,TGME49_047320,N/A
+TGME49-247390,ATPase, AAA family protein,protein coding gene,TGME49_047390,N/A
+TGME49-247400,hypothetical protein,protein coding gene,TGME49_047400,N/A
+TGME49-247420,hypothetical protein,protein coding gene,TGME49_047420,N/A
+TGME49-247470,nucleolar protein, putative,protein coding gene,TGME49_047470,N/A
+TGME49-247570,hypothetical protein,protein coding gene,TGME49_047570,N/A
+TGME49-247630,membrane protein, putative,protein coding gene,TGME49_047630,N/A
+TGME49-247640,hypothetical protein,protein coding gene,TGME49_047640,N/A
+TGME49-247740,hypothetical protein,protein coding gene,TGME49_047740,N/A
+TGME49-248200,ribosomal RNA (adenine(1779)-N(6)/adenine(1780)-N(6))- dimethyltransferase, putative,protein coding gene,TGME49_048200,N/A
+TGME49-248400,glyoxalase I, putative,protein coding gene,TGME49_048400,N/A
+TGME49-248440,hypothetical protein,protein coding gene,TGME49_048440,N/A
+TGME49-248770,hypothetical protein,protein coding gene,TGME49_048770,N/A
+TGME49-249010,hypothetical protein,protein coding gene,TGME49_049010,N/A
+TGME49-249030,endonuclease/exonuclease/phosphatase family protein,protein coding gene,TGME49_049030,N/A
+TGME49-249180,bifunctional dihydrofolate reductase-thymidylate synthase,protein coding gene,TGME49_049180,N/A
+TGME49-249215,hypothetical protein,protein coding gene,TGME49_049210,N/A
+TGME49-249270,protein disulfide isomerase-related protein (provisional), putative,protein coding gene,TGME49_049270,N/A
+TGME49-249300,hypothetical protein,protein coding gene,TGME49_049300,N/A
+TGME49-249470,Rhoptry kinase family protein, truncated (incomplete catalytic triad),protein coding gene,TGME49_049470,N/A
+TGME49-249510,hypothetical protein,protein coding gene,TGME49_049510,N/A
+TGME49-249530,exportin 1, putative,protein coding gene,TGME49_049530,N/A
+TGME49-249650,apolipoprotein A-I binding protein, putative,protein coding gene,TGME49_049650,N/A
+TGME49-249860,hypothetical protein,protein coding gene,TGME49_049860,N/A
+TGME49-249910,mitochondria-associated granulocyte macrophage CSF signaling molecule, putative,protein coding gene,TGME49_049910,N/A
+TGME49-249920,diphthine synthase, putative,protein coding gene,TGME49_049920,N/A
+TGME49-249950,Mak16 protein,protein coding gene,TGME49_049950,N/A
+TGME49-250750,tRNA (uracil-5-)-methyltransferase,protein coding gene,TGME49_050750,N/A
+TGME49-250770,eukaryotic initiation factor-4A, putative,protein coding gene,TGME49_050770,N/A
+TGME49-250890,3'-5' exonuclease domain-containing protein,protein coding gene,TGME49_050890,N/A
+TGME49-251600,IMP4 family U3 small nucleolar ribonucleoprotein (snoRNP), putative,protein coding gene,TGME49_051600,N/A
+TGME49-251840,hypothetical protein,protein coding gene,TGME49_051840,N/A
+TGME49-251880,tRNA synthetases class I family protein,protein coding gene,TGME49_051880,N/A
+TGME49-251890,hypothetical protein,protein coding gene,TGME49_051890,N/A
+TGME49-251930,enoyl-acyl carrier reductase ENR,protein coding gene,TGME49_051930,ENR
+TGME49-252210,pentatricopeptide repeat domain-containing protein,protein coding gene,TGME49_052210,N/A
+TGME49-252230,hypothetical protein,protein coding gene,TGME49_052230,N/A
+TGME49-252320,Sas10/Utp3/C1D family protein,protein coding gene,TGME49_052320,N/A
+TGME49-252480,hypothetical protein,protein coding gene,TGME49_052480,N/A
+TGME49-253020,hypothetical protein,protein coding gene,TGME49_053020,N/A
+TGME49-253090,DEAD/DEAH box helicase domain-containing protein,protein coding gene,TGME49_053090,N/A
+TGME49-253160,hypothetical protein,protein coding gene,TGME49_053160,N/A
+TGME49-253510,transporter/permease protein,protein coding gene,TGME49_053510,N/A
+TGME49-253520,U3 small nucleolar RNA-associated protein 6 protein,protein coding gene,TGME49_053520,N/A
+TGME49-253640,hypothetical protein,protein coding gene,TGME49_053640,N/A
+TGME49-253780,GTP cyclohydrolase I, putative,protein coding gene,TGME49_053780,N/A
+TGME49-254000,hypothetical protein,protein coding gene,TGME49_054000,N/A
+TGME49-254110,tryptophanyl-tRNA synthetase (TrpRS1),protein coding gene,TGME49_054110,N/A
+TGME49-254280,DNA-directed RNA polymerase III RPC9,protein coding gene,TGME49_054280,RPC9
+TGME49-254420,phospholipase, patatin family protein,protein coding gene,TGME49_054420,N/A
+TGME49-254510,ankyrin repeat-containing protein,protein coding gene,TGME49_054510,N/A
+TGME49-254580,UDP-galactose transporter family protein,protein coding gene,TGME49_054580,N/A
+TGME49-254590,hypothetical protein,protein coding gene,TGME49_054590,N/A
+TGME49-254630,CMGC kinase,protein coding gene,TGME49_054630,N/A
+TGME49-254730,POPLD (NUC188) domain-containing protein,protein coding gene,TGME49_054730,N/A
+TGME49-254770,Ser/Thr phosphatase family protein,protein coding gene,TGME49_054770,N/A
+TGME49-254810,hypothetical protein,protein coding gene,TGME49_054810,N/A
+TGME49-254820,hypothetical protein,protein coding gene,TGME49_054820,N/A
+TGME49-254920,hypothetical protein,protein coding gene,TGME49_054920,N/A
+TGME49-255170,hypothetical protein,protein coding gene,TGME49_055170,N/A
+TGME49-255260,apical membrane antigen AMA1,protein coding gene,TGME49_055260,N/A
+TGME49-255330,hypothetical protein,protein coding gene,TGME49_055330,N/A
+TGME49-255370,TIC20,protein coding gene,TGME49_055370,TIC20
+TGME49-256650,hypothetical protein,protein coding gene,TGME49_056650,N/A
+TGME49-257000,hypothetical protein,protein coding gene,TGME49_057000,N/A
+TGME49-257030,hypothetical protein,protein coding gene,TGME49_057030,N/A
+TGME49-257080,3'5'-cyclic nucleotide phosphodiesterase domain-containing protein,protein coding gene,TGME49_057080,N/A
+TGME49-257100,hypothetical protein,protein coding gene,TGME49_057100,N/A
+TGME49-257110,hypothetical protein,protein coding gene,TGME49_057110,N/A
+TGME49-257530,transporter, major facilitator family protein,protein coding gene,TGME49_057530,N/A
+TGME49-257730,methionine aminopeptidase, type i, putative,protein coding gene,TGME49_057730,N/A
+TGME49-257740,UMP-CMP kinase,protein coding gene,TGME49_057740,N/A
+TGME49-257770,histone lysine methyltransferase SET2,protein coding gene,TGME49_057770,SET2
+TGME49-258160,carbohydrate kinase,protein coding gene,TGME49_058160,N/A
+TGME49-258210,DNA-directed RNA polymerase II RPB2,protein coding gene,TGME49_058210,N/A
+TGME49-258560,hypothetical protein,protein coding gene,TGME49_058560,N/A
+TGME49-258640,adenylate kinase superfamily protein,protein coding gene,TGME49_058640,N/A
+TGME49-258870,hypothetical protein,protein coding gene,TGME49_058870,N/A
+TGME49-259210,jmjC domain-containing protein C2orf60,protein coding gene,TGME49_059210,C2ORF60
+TGME49-259220,DEAD/DEAH box helicase domain-containing protein,protein coding gene,TGME49_059220,N/A
+TGME49-259250,ATP-dependent DNA helicase, RecQ family protein,protein coding gene,TGME49_059250,N/A
+TGME49-259260,membrane protein FtsH1,protein coding gene,TGME49_059260,N/A
+TGME49-259550,dihydropteroate synthase,protein coding gene,TGME49_059550,N/A
+TGME49-259610,hypothetical protein,protein coding gene,TGME49_059610,N/A
+TGME49-259640,nucleoporin autopeptidase,protein coding gene,TGME49_059640,N/A
+TGME49-259880,hypothetical protein,protein coding gene,TGME49_059880,N/A
+TGME49-260010,acetyltransferase, GNAT family protein,protein coding gene,TGME49_060010,N/A
+TGME49-260170,elongation factor EF-G, putative,protein coding gene,TGME49_060170,N/A
+TGME49-260300,metal cation transporter, ZIP family protein,protein coding gene,TGME49_060300,N/A
+TGME49-260320,Noc2p family protein,protein coding gene,TGME49_060320,N/A
+TGME49-260400,hypothetical protein,protein coding gene,TGME49_060400,N/A
+TGME49-261050,RNB family domain-containing protein,protein coding gene,TGME49_061050,N/A
+TGME49-261060,diphthamide biosynthesis protein 2-related domain-containing protein,protein coding gene,TGME49_061060,N/A
+TGME49-261070,apicoplast triosephosphate translocator APT1,protein coding gene,TGME49_061070,APT1
+TGME49-261480,phosphatidyl serine synthase,protein coding gene,TGME49_061480,N/A
+TGME49-261610,hypothetical protein,protein coding gene,TGME49_061610,N/A
+TGME49-261690,hypothetical protein,protein coding gene,TGME49_061690,N/A
+TGME49-261730,hypothetical protein,protein coding gene,TGME49_061730,N/A
+TGME49-261950,ATP synthase beta subunit ATP-B,protein coding gene,TGME49_061950,ATPB
+TGME49-262000,AP2 domain transcription factor AP2VIIb-2,protein coding gene,TGME49_062000,AP2VIIB2
+TGME49-262400,lipase,protein coding gene,TGME49_062400,N/A
+TGME49-262430,4-hydroxy-3-methylbut-2-en-1-yl diphosphate synthase,protein coding gene,TGME49_062430,N/A
+TGME49-262660,hypothetical protein,protein coding gene,TGME49_062660,N/A
+TGME49-262740,hypothetical protein,protein coding gene,TGME49_062740,N/A
+TGME49-262750,histone lysine methyltransferase, SET, putative,protein coding gene,TGME49_062750,N/A
+TGME49-263190,adenylosuccinate lyase, putative,protein coding gene,TGME49_063190,N/A
+TGME49-263210,ubiquitin interaction motif domain-containing protein,protein coding gene,TGME49_063210,N/A
+TGME49-263270,glycerophosphodiester phosphodiesterase family protein,protein coding gene,TGME49_063270,N/A
+TGME49-263340,RNA methyltransferase, TrmH family protein,protein coding gene,TGME49_063340,N/A
+TGME49-263420,ubiquitin-specific protease USP4,protein coding gene,TGME49_063420,USP4
+TGME49-263430,3-hydroxyisobutyrate dehydrogenase,protein coding gene,TGME49_063430,N/A
+TGME49-263670,ribosomal RNA large subunit methyltransferase FTSJ1, putative,protein coding gene,TGME49_063670,N/A
+TGME49-263760,hypothetical protein,protein coding gene,TGME49_063760,N/A
+TGME49-264030,aminotransferase, putative,protein coding gene,TGME49_064030,N/A
+TGME49-264080,acyl carrier protein ACP,protein coding gene,TGME49_064080,ACP
+TGME49-264110,hypothetical protein,protein coding gene,TGME49_064110,N/A
+TGME49-264130,hypothetical protein,protein coding gene,TGME49_064130,N/A
+TGME49-264150,hypothetical protein,protein coding gene,TGME49_064150,N/A
+TGME49-264190,hypothetical protein,protein coding gene,TGME49_064190,N/A
+TGME49-264220,hypothetical protein,protein coding gene,TGME49_064220,N/A
+TGME49-264710,bucentaur or craniofacial development domain-containing protein,protein coding gene,TGME49_064710,N/A
+TGME49-264752,HEAT repeat-containing protein,protein coding gene,TGME49_064750,N/A
+TGME49-264780,UTP-glucose-1-phosphate uridylyltransferase subfamily protein,protein coding gene,TGME49_064780,N/A
+TGME49-264790,hypothetical protein,protein coding gene,TGME49_064790,N/A
+TGME49-265110,ribosome biogenesis protein, putative,protein coding gene,TGME49_065110,N/A
+TGME49-265220,co-chaperone GrpE protein,protein coding gene,TGME49_065220,N/A
+TGME49-265280,hypothetical protein,protein coding gene,TGME49_065280,N/A
+TGME49-265360,hypothetical protein,protein coding gene,TGME49_065360,N/A
+TGME49-266410,hypothetical protein,protein coding gene,TGME49_066410,N/A
+TGME49-266640,Acetyl-coenzyme A synthetase 2, putative,protein coding gene,TGME49_066640,N/A
+TGME49-266680,hypothetical protein,protein coding gene,TGME49_066680,N/A
+TGME49-266730,leucyl-tRNA synthetase (LeuRS2),protein coding gene,TGME49_066730,N/A
+TGME49-266800,integral membrane protein, putative,protein coding gene,TGME49_066800,N/A
+TGME49-266840,hypothetical protein,protein coding gene,TGME49_066840,N/A
+TGME49-266850,3-demethylubiquinone-9 3-O-methyltransferase,protein coding gene,TGME49_066850,N/A
+TGME49-266900,cyclin, N-terminal domain-containing protein,protein coding gene,TGME49_066900,N/A
+TGME49-266930,general transcription factor IIH polypeptide 3 GTF2H3,protein coding gene,TGME49_066930,GTF2H3
+TGME49-266950,protein kinase, putative,protein coding gene,TGME49_066950,N/A
+TGME49-267050,hydrolase, alpha/beta fold family protein,protein coding gene,TGME49_067050,N/A
+TGME49-267390,DNA-directed RNA polymerase I RPAC1,protein coding gene,TGME49_067390,POLR1C
+TGME49-267450,alpha-tubulin suppressor protein,protein coding gene,TGME49_067450,N/A
+TGME49-267470,cold-shock DNA-binding domain-containing protein,protein coding gene,TGME49_067470,N/A
+TGME49-267480,tRNA (guanine(26)-N(2))-dimethyltransferase, putative,protein coding gene,TGME49_067480,N/A
+TGME49-268300,hypothetical protein,protein coding gene,TGME49_068300,N/A
+TGME49-268600,DNA polymerase epsilon subunit B protein,protein coding gene,TGME49_068600,N/A
+TGME49-268640,BING4CT (NUC141) domain-containing protein,protein coding gene,TGME49_068640,N/A
+TGME49-268690,hypothetical protein,protein coding gene,TGME49_068690,N/A
+TGME49-269130,hypothetical protein,protein coding gene,TGME49_069130,N/A
+TGME49-269190,glyceraldehyde-3-phosphate dehydrogenase GAPDH2,protein coding gene,TGME49_069190,GAPDH2
+TGME49-269740,R3H domain-containing protein,protein coding gene,TGME49_069740,N/A
+TGME49-269900,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_069900,N/A
+TGME49-269980,preprotein translocase Sec61, putative,protein coding gene,TGME49_069980,N/A
+TGME49-270220,hypothetical protein,protein coding gene,TGME49_070220,N/A
+TGME49-270300,hypothetical protein,protein coding gene,TGME49_070300,N/A
+TGME49-270510,asparaginyl-tRNA synthetase (NOB+tRNA synthase),protein coding gene,TGME49_070510,N/A
+TGME49-270610,hypothetical protein,protein coding gene,TGME49_070610,N/A
+TGME49-270650,deoxyribose-phosphate aldolase,protein coding gene,TGME49_070650,N/A
+TGME49-270700,hypothetical protein,protein coding gene,TGME49_070700,N/A
+TGME49-270750,hypothetical protein,protein coding gene,TGME49_070750,N/A
+TGME49-270760,asparagine synthase,protein coding gene,TGME49_070760,N/A
+TGME49-270960,hypothetical protein,protein coding gene,TGME49_070960,N/A
+TGME49-271182,hypothetical protein,protein coding gene,TGME49_071180,N/A
+TGME49-271240,hypothetical protein,protein coding gene,TGME49_071240,N/A
+TGME49-271250,hypothetical protein,protein coding gene,TGME49_071250,N/A
+TGME49-271300,DNA-directed RNA polymerase II RPB7,protein coding gene,TGME49_071300,POLR2G
+TGME49-271390,hypothetical protein,protein coding gene,TGME49_071390,N/A
+TGME49-272270,radical SAM domain-containing protein,protein coding gene,TGME49_072270,N/A
+TGME49-272370,hypothetical protein,protein coding gene,TGME49_072370,N/A
+TGME49-272410,phosphogluconate dehydrogenase (decarboxylating), NAD binding domain-containing protein,protein coding gene,TGME49_072410,N/A
+TGME49-272490,protoporphyrinogen oxidase,protein coding gene,TGME49_072490,N/A
+TGME49-272500,sugar transporter ST2,protein coding gene,TGME49_072500,ST2
+TGME49-272520,hypothetical protein,protein coding gene,TGME49_072520,N/A
+TGME49-272570,dihydrouridine synthase (dus) protein,protein coding gene,TGME49_072570,N/A
+TGME49-272900,DNA repair protein RAD51, putative,protein coding gene,TGME49_072900,N/A
+TGME49-272910,T-complex protein 1 delta subunit,protein coding gene,TGME49_072910,N/A
+TGME49-273330,hypothetical protein,protein coding gene,TGME49_073330,N/A
+TGME49-273640,hypothetical protein,protein coding gene,TGME49_073640,N/A
+TGME49-273730,phospholipase, patatin family protein,protein coding gene,TGME49_073730,N/A
+TGME49-275640,hypothetical protein,protein coding gene,TGME49_075640,N/A
+TGME49-275650,hypothetical protein,protein coding gene,TGME49_075650,N/A
+TGME49-275690,ClpB, putative,protein coding gene,TGME49_075690,N/A
+TGME49-275830,hypothetical protein,protein coding gene,TGME49_075830,N/A
+TGME49-275860,hypothetical protein,protein coding gene,TGME49_075860,N/A
+TGME49-276890,hypothetical protein,protein coding gene,TGME49_076890,N/A
+TGME49-276990,cytochrome b5 family heme/steroid binding domain-containing protein,protein coding gene,TGME49_076990,N/A
+TGME49-277080,microneme protein MIC5,protein coding gene,TGME49_077080,MIC5
+TGME49-277090,carrier superfamily protein,protein coding gene,TGME49_077090,N/A
+TGME49-277560,hypothetical protein,protein coding gene,TGME49_077560,N/A
+TGME49-277680,hypothetical protein,protein coding gene,TGME49_077680,N/A
+TGME49-278170,hypothetical protein,protein coding gene,TGME49_078170,N/A
+TGME49-278550,elongation factor Tu GTP binding domain-containing protein,protein coding gene,TGME49_078550,N/A
+TGME49-278600,hypothetical protein,protein coding gene,TGME49_078600,N/A
+TGME49-279330,DEAD/DEAH box helicase family protein,protein coding gene,TGME49_079330,N/A
+TGME49-279390,proliferation-associated protein 2G4, putative,protein coding gene,TGME49_079390,N/A
+TGME49-280380,poly(ADP-ribose) glycohydrolase,protein coding gene,TGME49_080380,N/A
+TGME49-280500,inorganic anion transporter, sulfate permease (SulP) family protein,protein coding gene,TGME49_080500,N/A
+TGME49-281370,polynucleotide adenylyltransferase,protein coding gene,TGME49_081370,N/A
+TGME49-281420,histone deacetylase HDAC1,protein coding gene,TGME49_081420,HDAC1
+TGME49-281490,glutamine amidotransferase subunit pdxt, putative,protein coding gene,TGME49_081490,N/A
+TGME49-281545,eukaryotic initiation factor 3, gamma subunit protein,protein coding gene,TGME49_081550,N/A
+TGME49-282190,hydrolase, NUDIX family protein,protein coding gene,TGME49_082190,N/A
+TGME49-283540,hypothetical protein,protein coding gene,TGME49_083540,N/A
+TGME49-283702,FATC domain-containing protein,protein coding gene,TGME49_083700,N/A
+TGME49-283890,histone lysine demethylase JMJD6b,protein coding gene,TGME49_083890,JMJD6b
+TGME49-284010,5'-3' exonuclease, N-terminal resolvase family domain-containing protein,protein coding gene,TGME49_084010,N/A
+TGME49-285260,hypothetical protein,protein coding gene,TGME49_085260,N/A
+TGME49-285480,hypothetical protein,protein coding gene,TGME49_085480,N/A
+TGME49-285710,hypothetical protein,protein coding gene,TGME49_085710,N/A
+TGME49-285800,hypothetical protein,protein coding gene,TGME49_085800,N/A
+TGME49-285840,RAP domain-containing protein,protein coding gene,TGME49_085840,N/A
+TGME49-285850,peptidyl-prolyl cis-trans isomerase, FKBP-type domain-containing protein,protein coding gene,TGME49_085850,N/A
+TGME49-285950,hypothetical protein,protein coding gene,TGME49_085950,N/A
+TGME49-286010,hypothetical protein,protein coding gene,TGME49_086010,N/A
+TGME49-286420,elongation factor 1-alpha (EF-1-ALPHA), putative,protein coding gene,TGME49_086420,N/A
+TGME49-286610,ribosomal protein RPS14, putative,protein coding gene,TGME49_086610,N/A
+TGME49-286620,S1 RNA binding domain-containing protein,protein coding gene,TGME49_086620,N/A
+TGME49-286630,redoxin domain-containing protein,protein coding gene,TGME49_086630,N/A
+TGME49-286640,GTPase,protein coding gene,TGME49_086640,N/A
+TGME49-286680,hypothetical protein,protein coding gene,TGME49_086680,N/A
+TGME49-287230,inorganic anion transporter, sulfate permease (SulP) family protein,protein coding gene,TGME49_087230,N/A
+TGME49-287270,hypothetical protein,protein coding gene,TGME49_087270,N/A
+TGME49-288000,hypothetical protein,protein coding gene,TGME49_088000,N/A
+TGME49-288330,histone lysine methyltransferase, SET, putative,protein coding gene,TGME49_088330,N/A
+TGME49-288360,tryptophanyl-tRNA synthetase (TrpRS2),protein coding gene,TGME49_088360,N/A
+TGME49-288500,FAD Malate-dehydrogenase (MDH-FAD),protein coding gene,TGME49_088500,N/A
+TGME49-288510,ubiquitin carboxyl-terminal hydrolase,protein coding gene,TGME49_088510,N/A
+TGME49-288530,NOL1/NOP2/sun family protein,protein coding gene,TGME49_088530,N/A
+TGME49-288540,nucleoside transporter protein,protein coding gene,TGME49_088540,N/A
+TGME49-288680,endonuclease IV APN,protein coding gene,TGME49_088680,N/A
+TGME49-288800,endonuclease/exonuclease/phosphatase family protein,protein coding gene,TGME49_088800,N/A
+TGME49-288840,hypothetical protein,protein coding gene,TGME49_088840,N/A
+TGME49-288940,hypothetical protein,protein coding gene,TGME49_088940,N/A
+TGME49-288990,hypothetical protein,protein coding gene,TGME49_088990,N/A
+TGME49-289000,hypothetical protein,protein coding gene,TGME49_089000,N/A
+TGME49-289070,E1-E2 ATPase subfamily protein,protein coding gene,TGME49_089070,N/A
+TGME49-289110,hypothetical protein,protein coding gene,TGME49_089110,N/A
+TGME49-289350,ATP-binding cassette G family transporter ABCG84,protein coding gene,TGME49_089350,ABCG84
+TGME49-289620,cathepsin CPC1,protein coding gene,TGME49_089620,CPC1
+TGME49-289630,microneme protein MIC16,protein coding gene,TGME49_089630,MIC16
+TGME49-289640,hypothetical protein,protein coding gene,TGME49_089640,N/A
+TGME49-289670,DNA repair metallo-beta-lactamase,protein coding gene,TGME49_089670,N/A
+TGME49-289900,n-acetyltransferase family protein,protein coding gene,TGME49_089900,N/A
+TGME49-289940,uroporphyrinogen decarboxylase,protein coding gene,TGME49_089940,N/A
+TGME49-289960,hypothetical protein,protein coding gene,TGME49_089960,N/A
+TGME49-291010,hypothetical protein,protein coding gene,TGME49_091010,N/A
+TGME49-291080,TATA-box binding protein TBP1,protein coding gene,TGME49_091080,TBP1
+TGME49-291150,hypothetical protein,protein coding gene,TGME49_091150,N/A
+TGME49-291670,DEAD/DEAH box helicase domain-containing protein,protein coding gene,TGME49_091670,N/A
+TGME49-291820,RNA helicase (UPF2 interacting domain) protein,protein coding gene,TGME49_091820,N/A
+TGME49-291890,microneme protein MIC1,protein coding gene,TGME49_091890,MIC1
+TGME49-291900,Ydr279p family (RNase H2 complex component) protein,protein coding gene,TGME49_091900,N/A
+TGME49-292300,DNA-directed RNA polymerase III RPC8,protein coding gene,TGME49_092300,POLR3H
+TGME49-292920,heat shock protein 75, putative,protein coding gene,TGME49_092920,N/A
+TGME49-293190,endonuclease/exonuclease/phosphatase family protein,protein coding gene,TGME49_093190,N/A
+TGME49-293460,ATP-dependent DNA ligase domain-containing protein,protein coding gene,TGME49_093460,N/A
+TGME49-293630,hypothetical protein,protein coding gene,TGME49_093630,N/A
+TGME49-293660,hypothetical protein,protein coding gene,TGME49_093660,N/A
+TGME49-293700,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_093700,N/A
+TGME49-293840,hypothetical protein,protein coding gene,TGME49_093840,N/A
+TGME49-294010,yrdC domain-containing protein,protein coding gene,TGME49_094010,N/A
+TGME49-294050,hypothetical protein,protein coding gene,TGME49_094050,N/A
+TGME49-294060,hypothetical protein,protein coding gene,TGME49_094060,N/A
+TGME49-294310,hypothetical protein,protein coding gene,TGME49_094310,N/A
+TGME49-294420,programmed cell death protein 2, c-terminal domain-containing protein,protein coding gene,TGME49_094420,N/A
+TGME49-294440,NOL1/NOP2/sun family protein,protein coding gene,TGME49_094440,N/A
+TGME49-294640,ribonucleoside-diphosphate reductase large chain,protein coding gene,TGME49_094640,N/A
+TGME49-294980,hypothetical protein,protein coding gene,TGME49_094980,N/A
+TGME49-295010,DEAD/DEAH box helicase domain-containing protein,protein coding gene,TGME49_095010,N/A
+TGME49-295030,hypothetical protein,protein coding gene,TGME49_095030,N/A
+TGME49-295060,exonuclease,protein coding gene,TGME49_095060,N/A
+TGME49-295320,embryo sac development arrest EDA7, putative,protein coding gene,TGME49_095320,N/A
+TGME49-295440,hypothetical protein,protein coding gene,TGME49_095440,N/A
+TGME49-295950,KRUF family protein,protein coding gene,TGME49_095950,N/A
+TGME49-295960,hypothetical protein,protein coding gene,TGME49_095960,N/A
+TGME49-295990,ubiquitin conjugating enzyme E2, putative,protein coding gene,TGME49_095990,N/A
+TGME49-297080,pyridoxal kinase,protein coding gene,TGME49_097080,N/A
+TGME49-297170,50S ribosomal protein L17, putative,protein coding gene,TGME49_097170,N/A
+TGME49-297270,hypothetical protein,protein coding gene,TGME49_097270,N/A
+TGME49-297420,beta-tubulin cofactor D, putative,protein coding gene,TGME49_097420,N/A
+TGME49-297530,DNA-directed RNA polymerase I RPA2,protein coding gene,TGME49_097530,POLR1B
+TGME49-297880,dense granule protein DG32,protein coding gene,TGME49_097880,N/A
+TGME49-297890,hypothetical protein,protein coding gene,TGME49_097890,N/A
+TGME49-297900,hypothetical protein,protein coding gene,TGME49_097900,N/A
+TGME49-298020,DEAD-family helicase,protein coding gene,TGME49_098020,N/A
+TGME49-298040,hypothetical protein,protein coding gene,TGME49_098040,N/A
+TGME49-298990,ferredoxin NADP+ oxidoreductase FNR,protein coding gene,TGME49_098990,N/A
+TGME49-299070,pyruvate kinase PyKII,protein coding gene,TGME49_099070,PYKII
+TGME49-299780,hypothetical protein,protein coding gene,TGME49_099780,N/A
+TGME49-299900,hypothetical protein,protein coding gene,TGME49_099960,N/A
+TGME49-300340,CAF1 family ribonuclease,protein coding gene,TGME49_100340,N/A
+TGME49-300380,endoplasmic reticulum oxidoreductin, putative,protein coding gene,TGME49_100380,N/A
+TGME49-301180,SAG-related sequence SRS19F,protein coding gene,TGME49_101180,SRS19F
+TGME49-304500,hypothetical protein,protein coding gene,TGME49_104500,N/A
+TGME49-304660,prostaglandin-E synthase,protein coding gene,TGME49_104660,N/A
+TGME49-304740,rhoptry kinase family protein ROP35,protein coding gene,TGME49_104740,ROP35
+TGME49-304750,zinc finger, C3HC4 type (RING finger) domain-containing protein,protein coding gene,TGME49_104750,N/A
+TGME49-304955,serine/threonine specific protein phosphatase,protein coding gene,TGME49_104950,N/A
+TGME49-305480,elongator complex protein ELP3,protein coding gene,TGME49_105480,ELP3
+TGME49-305490,programmed cell death protein 2, c-terminal domain-containing protein,protein coding gene,TGME49_105490,N/A
+TGME49-305800,6-pyruvoyl tetrahydrobiopterin synthase,protein coding gene,TGME49_105800,N/A
+TGME49-305860,calcium-dependent protein kinase CDPK3,protein coding gene,TGME49_105860,CDPK3
+TGME49-305900,hypothetical protein,protein coding gene,TGME49_105900,N/A
+TGME49-306290,DNA-directed RNA polymerase III RPC1,protein coding gene,TGME49_106290,POLR3A
+TGME49-306400,hypothetical protein,protein coding gene,TGME49_106400,N/A
+TGME49-306610,3' exoribonuclease family, domain 1 domain-containing protein,protein coding gene,TGME49_106610,N/A
+TGME49-306930,proteasome subunit beta type 7 precursor, putative,protein coding gene,TGME49_106930,N/A
+TGME49-306950,RAP domain-containing protein,protein coding gene,TGME49_106950,N/A
+TGME49-306960,phenylalanine--tRNA ligase, beta subunit protein,protein coding gene,TGME49_106960,N/A
+TGME49-307030,Purine nucleoside phosphorylase,protein coding gene,TGME49_107030,PNP
+TGME49-307040,shikimate dehydrogenase substrate binding domain-containing protein,protein coding gene,TGME49_107040,N/A
+TGME49-307610,elongation factor TS, putative,protein coding gene,TGME49_107610,N/A
+TGME49-307650,uracil-DNA glycosylase,protein coding gene,TGME49_107650,N/A
+TGME49-307820,hypothetical protein,protein coding gene,TGME49_107820,N/A
+TGME49-307830,hypothetical protein,protein coding gene,TGME49_107830,N/A
+TGME49-308950,histidine acid phosphatase superfamily protein,protein coding gene,TGME49_108950,N/A
+TGME49-309000,hypothetical protein,protein coding gene,TGME49_109000,N/A
+TGME49-309240,CorA family Mg2+ transporter protein,protein coding gene,TGME49_109240,N/A
+TGME49-309290,hypothetical protein,protein coding gene,TGME49_109290,N/A
+TGME49-309580,transporter, major facilitator family protein,protein coding gene,TGME49_109580,N/A
+TGME49-310170,hypothetical protein,protein coding gene,TGME49_110170,N/A
+TGME49-310250,hypothetical protein,protein coding gene,TGME49_110250,N/A
+TGME49-310310,WD domain, G-beta repeat-containing protein,protein coding gene,TGME49_110310,N/A
+TGME49-310400,glycosyl transferase family 8 protein,protein coding gene,TGME49_110400,N/A
+TGME49-310500,hypothetical protein,protein coding gene,TGME49_110500,N/A
+TGME49-310710,small ribosomal subunit Rsm22 protein,protein coding gene,TGME49_110710,N/A
+TGME49-310840,hypothetical protein,protein coding gene,TGME49_110840,N/A
+TGME49-310950,AP2 domain transcription factor AP2XI-3,protein coding gene,TGME49_110950,AP2XI3
+TGME49-311410,M phase phosphoprotein MPP10, putative,protein coding gene,TGME49_111410,N/A
+TGME49-311500,ThiF family protein,protein coding gene,TGME49_111500,N/A
+TGME49-311690,UBA/TS-N domain-containing protein,protein coding gene,TGME49_111690,N/A
+TGME49-311720,chaperonin protein BiP,protein coding gene,TGME49_111720,N/A
+TGME49-311750,mago binding protein,protein coding gene,TGME49_111750,N/A
+TGME49-311790,hypothetical protein,protein coding gene,TGME49_111790,N/A
+TGME49-312110,apicoplast-associated thioredoxin family protein Atrx1,protein coding gene,TGME49_112110,N/A
+TGME49-312130,hypothetical protein,protein coding gene,TGME49_112130,N/A
+TGME49-312310,ATPase, AAA family protein,protein coding gene,TGME49_112310,N/A
+TGME49-312340,hypothetical protein,protein coding gene,TGME49_112340,N/A
+TGME49-312350,IMPACT, putative,protein coding gene,TGME49_112350,N/A
+TGME49-312410,hypothetical protein,protein coding gene,TGME49_112410,N/A
+TGME49-312470,hypothetical protein,protein coding gene,TGME49_112470,N/A
+TGME49-312480,uracil phosphoribosyltransferase FUR1, putative,protein coding gene,TGME49_112480,N/A
+TGME49-312622,DUF803 domain-containing protein,protein coding gene,TGME49_112620,N/A
+TGME49-312820,hypothetical protein,protein coding gene,TGME49_112820,N/A
+TGME49-312960,hypothetical protein,protein coding gene,TGME49_112960,N/A
+TGME49-312990,DEAD/DEAH box ATP-dependent RNA helicase,protein coding gene,TGME49_112990,N/A
+TGME49-313050,oxidoreductase, short chain dehydrogenase/reductase family protein,protein coding gene,TGME49_113050,N/A
+TGME49-313060,eukaryotic translation initiation factor 2B, putative,protein coding gene,TGME49_113060,N/A
+TGME49-313130,hypothetical protein,protein coding gene,TGME49_113130,N/A
+TGME49-313150,DUF89/Fructose bisphosphatase,protein coding gene,TGME49_113150,N/A
+TGME49-313310,DnaJ domain-containing protein,protein coding gene,TGME49_113310,N/A
+TGME49-313495,hypothetical protein,protein coding gene,TGME49_113490,N/A
+TGME49-313640,hypothetical protein,protein coding gene,TGME49_113640,N/A
+TGME49-313660,hypothetical protein,protein coding gene,TGME49_113660,N/A
+TGME49-313750,hypothetical protein,protein coding gene,TGME49_113750,N/A
+TGME49-313830,AARP2CN (NUC121) domain-containing protein,protein coding gene,TGME49_113830,N/A
+TGME49-314470,hypothetical protein,protein coding gene,TGME49_114470,N/A
+TGME49-314480,hypothetical protein,protein coding gene,TGME49_114480,N/A
+TGME49-314680,hypothetical protein,protein coding gene,TGME49_114680,N/A
+TGME49-314690,hypothetical protein,protein coding gene,TGME49_114690,N/A
+TGME49-314700,hypothetical protein,protein coding gene,TGME49_114700,N/A
+TGME49-314730,ALG6, ALG8 glycosyltransferase family protein,protein coding gene,TGME49_114730,N/A
+TGME49-314910,starch binding domain-containing protein,protein coding gene,TGME49_114910,N/A
+TGME49-315230,hypothetical protein,protein coding gene,TGME49_115230,N/A
+TGME49-315250,GAMM1 protein, putative,protein coding gene,TGME49_115250,N/A
+TGME49-315600,MCM2/3/5 family protein,protein coding gene,TGME49_115600,N/A
+TGME49-315640,lipoyl(octanoyl) transferase,protein coding gene,TGME49_115640,N/A
+TGME49-315885,glycosyltransferase, putative,protein coding gene,TGME49_115880,N/A
+TGME49-316250,hypothetical protein,protein coding gene,TGME49_116250,N/A
+TGME49-316300,ATP-dependent DNA helicase, RecQ family protein,protein coding gene,TGME49_116300,N/A
+TGME49-316350,hypothetical protein,protein coding gene,TGME49_116350,N/A
+TGME49-316450,longevity-assurance protein (LAG1) domain-containing protein,protein coding gene,TGME49_116450,N/A
+TGME49-316520,1,4-alpha-glucan-branching enzyme,protein coding gene,TGME49_116520,N/A
+TGME49-316530,myosin heavy chain, putative,protein coding gene,TGME49_116530,N/A
+TGME49-316700,uridine kinase,protein coding gene,TGME49_116700,N/A
+TGME49-318210,hypothetical protein,protein coding gene,TGME49_118210,N/A
+TGME49-318230,phosphoglycerate kinase PGKI,protein coding gene,TGME49_118230,PGKI
+TGME49-318450,zinc finger, C3HC4 type (RING finger) domain-containing protein,protein coding gene,TGME49_118450,N/A
+TGME49-318590,MRP family domain-containing protein,protein coding gene,TGME49_118590,N/A
+TGME49-318610,AP2 domain transcription factor AP2IV-3,protein coding gene,TGME49_118610,AP2IV3
+TGME49-318620,RNA-directed RNA polymerase,protein coding gene,TGME49_118620,N/A
+TGME49-318640,hypothetical protein,protein coding gene,TGME49_118640,N/A
+TGME49-318690,RNA recognition motif-containing protein,protein coding gene,TGME49_118690,N/A
+TGME49-318700,eukaryotic initiation factor-6, putative,protein coding gene,TGME49_118700,N/A
+TGME49-318730,glycosyl transferase,protein coding gene,TGME49_118730,N/A
+TGME49-318750,deoxyribose-phosphate aldolase,protein coding gene,TGME49_118750,N/A
+TGME49-319312,hypothetical protein,protein coding gene,TGME49_119310,N/A
+TGME49-319360,SAG-related sequence SRS17A,protein coding gene,TGME49_119360,SRS17A
+TGME49-319860,DNA polymerase family B protein,protein coding gene,TGME49_119860,N/A
+TGME49-320020,transporter, major facilitator family protein,protein coding gene,TGME49_120020,N/A
+TGME49-320110,proliferating cell nuclear antigen PCNA2,protein coding gene,TGME49_120110,PCNA2
+TGME49-320180,SAG-related sequence SRS16C,protein coding gene,TGME49_120180,BSR4
+TGME49-320260,hypothetical protein,protein coding gene,TGME49_120260,N/A
+TGME49-320490,N-acyl-phosphatidylethanolamine-hydrolyzing phospholipase D family protein,protein coding gene,TGME49_120490,N/A
+TGME49-320570,elongation factor Tu, putative,protein coding gene,TGME49_120570,N/A
+TGME49-320620,queuine tRNA ribosyl transferase,protein coding gene,TGME49_120620,N/A
+TGME49-320720,hypothetical protein,protein coding gene,TGME49_120720,N/A
+TGME49-321310,16S rRNA processing protein RimM domain-containing protein,protein coding gene,TGME49_121310,N/A
+TGME49-321430,hypothetical protein,protein coding gene,TGME49_121430,N/A
+TGME49-321590,hypothetical protein,protein coding gene,TGME49_121590,N/A
