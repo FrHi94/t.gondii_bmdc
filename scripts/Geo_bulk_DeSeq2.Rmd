@@ -14,7 +14,7 @@ library("tidyverse")
 
 ```{r, import data}
 
-GSE134869 <- read.table("~/t.gondi_dc/data/GEO_comparions/GSE134869_SP7_umi_counts.tsv.gz", sep = "\t", row.names = 1, header = T)
+GSE134869 <- read.table("~/t.gondi_dc/data/cnt/GSE134869_SP7_umi_counts.tsv.gz", sep = "\t", row.names = 1, header = T)
 
 head(GSE134869)
 

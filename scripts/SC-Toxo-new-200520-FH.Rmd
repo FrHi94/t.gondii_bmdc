@@ -333,7 +333,7 @@ print(ggplot(identpercluster, aes(cluster, percent, fill= identity)) +
 ```
 
 
-```{r, scale the calcualted percentages}
+```{r, scale the calculated percentages}
 #calculate percentages of individual clusters with normalizing to the individual cluster 
 
 c1.p <- subset(identpercluster, cluster == "Tg 1")
@@ -450,7 +450,7 @@ deg_t.gondii_allo <- subset(deg_t.gondii, deg_t.gondii$ensembl_gene_id %in% hype
 deg_t.gondii_allo <- left_join(deg_t.gondii_allo, hyperlopet, by = "ensembl_gene_id")
 deg_t.gondii_allo$hyperlopet_allocation <- as.factor(deg_t.gondii_allo$hyperlopet_allocation)
 
-
+write.table(deg_t.gondii_allo, file = "~/t.gondi_dc/res/supplementary_data/supplementary_data_8.csv", sep = "\t", quote = F, row.names = F)
 ##split bt clusters
 #cluster Tg1
 deg_t.gondii_allo_c1 <- subset(deg_t.gondii_allo, deg_t.gondii_allo$ensembl_gene_id %in% tx.markers[tx.markers$cluster=="0",]$gene)

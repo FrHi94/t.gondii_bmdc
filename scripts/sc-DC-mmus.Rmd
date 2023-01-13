@@ -185,7 +185,7 @@ Create the seurat object for analysis - set 2 markers for "mature" and "immature
 
 ```{r, Create Seuratobject, width = 10, height = 40}
 
-meta_new <- read.table("~/t.gondi_dc/data/meta/meta_141221.csv",sep = ";", header = T, row.names = 1)
+meta_new <- read.table("~/t.gondi_dc/data/meta/meta_wells_141221.csv",sep = ";", header = T, row.names = 1)
 
 se.dc.mus <- CreateSeuratObject(nmat, min.cells = 3, min.features = 200, project = "DC-TG-FH-M", meta.data = meta_new)
 
@@ -537,7 +537,7 @@ top.10
 
 ```
 
-Classify the cells based on their expression profile using the CLustifyr package and the microarray data of [Helft J., 2015](https://pubmed.ncbi.nlm.nih.gov/26084029/). 
+Classify the cells based on their expression profile using the Clustifyr package and the microarray data of [Helft J., 2015](https://pubmed.ncbi.nlm.nih.gov/26084029/). 
 
 
 
@@ -594,9 +594,10 @@ deg_celltype <- subset(deg_celltype, deg_celltype$p_val_adj < 0.05)
 
 cmat <- hmat_mousetoxo(t(se.dc.mus@assays$SCT@counts), se.dc.mus$cluster_type)
 
-deg_celltype <- deg_celltype[!duplicated(deg_celltype$gene), ]
 
 write.table(deg_celltype, "~/t.gondi_dc/res/supplementary_data/GM-DC_GM-Mac_markers.csv", row.names = F, sep = ",", quote = F)
+
+deg_celltype <- deg_celltype[!duplicated(deg_celltype$gene), ]
 
 pdf("~/t.gondi_dc/res/figures/fig2/hmat_celltypes.pdf")
 phmat_simple(cmat, seed = unique(deg_celltype$gene))

@@ -79,14 +79,14 @@ corplot.tx <- function(data, seed, annotation,method, order, clust = clust){
 #make correlation matrix for selected genes 
 cor.mat.1 <- as.matrix(data[seed,])
 #attach genes names (if present)
-  annotation <- subset(annotation, annotation$mat_id %in% intersect(rownames(cor.mat.1), annotation$mat_id))
-  cor.mat.1 <- cor.mat.1[annotation$mat_id,]
-  rownames(cor.mat.1) <- paste0(annotation$mat_id,"::",annotation$Gene.Name.or.Symbol)
+  annotation <- subset(annotation, annotation$ensembl_gene_id %in% intersect(rownames(cor.mat.1), annotation$ensembl_gene_id))
+  cor.mat.1 <- cor.mat.1[annotation$ensembl_gene_id,]
+  rownames(cor.mat.1) <- paste0(annotation$ensembl_gene_id,"::",annotation$external_gene_name)
   rownames(cor.mat.1) <- gsub("::N/A", "", rownames(cor.mat.1))
   cor.mat.1 <- t(cor.mat.1)
   cor.mat.1 <- cor(cor.mat.1, method = "pearson")
 
-return(corrplot(cor.mat.1, method = method,type = "upper",order = order, clust.method = clust, tl.col = "black",tl.cex = 0.6, col = colorRampPalette(c("#660156","#21908C", "white", "#FFF68F", "#FFD700"))(1001)))
+return(list(cor.mat.1,corrplot(cor.mat.1, method = method,type = "upper",order = order, clust.method = clust, tl.col = "black",tl.cex = 0.6, col = colorRampPalette(c("#660156","#21908C", "white", "#FFF68F", "#FFD700"))(1001))))
 }
 
 corm.tx <- function(data, seed, annotation){
@@ -129,7 +129,7 @@ tab1.tg <- tab1.tg[-(which(tab1.tg$ensembl_gene_id %in% cell_cycle_tab1)),]
 ##Subset remaining expression matrix to not contain any cell cycle/replication marker genes and explore correlation 
 M_ncc <- M_toxo[-which(c(rownames(M_toxo) %in% G1.dat$ensembl_gene_id, rownames(M_toxo) %in% S_M.dat$ensembl_gene_id)),]
 
-#calculate the correlations (bicor) between the virulent and the maintance cluster and exclude all genes with average positive  orrelations (Rowsums) below 0.25 or negative correlations above -0.25
+#calculate the correlations (bicor) between the virulent and the maintance cluster and exclude all genes with average positive  correlations (Rowsums) below 0.25 or negative correlations above -0.25
 tab1.tg_genes <- tab1.tg$ensembl_gene_id
 int.1_m <- M_ncc[rownames(M_ncc) %in% tab1.tg_genes,]
 inter.1.cor <- cor.tx(mat1 = M_ncc, mat2 = int.1_m, thrs.pos = 0.17, thrs.neg = -0.17)
@@ -139,14 +139,17 @@ inter.9.cor <- cor.tx(mat1 = M_toxo, mat2 = int.9_m, thrs.pos = 0.25, thrs.neg =
 
 #Run correlation analysis 
 
-pdf("~/t.gondi_dc/res/figures/fig4/inter1_correlation_pearson_ncc.pdf")
-corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab1.tg$ensembl_gene_id), rownames(inter.1.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")
-dev.off()
+#pdf("~/t.gondi_dc/res/figures/fig4/inter1_correlation_pearson_ncc.pdf")
+corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab1.tg$ensembl_gene_id), rownames(inter.1.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")[[2]]
+#dev.off()
 
-pdf("~/t.gondi_dc/res/figures/fig4/inter9_correlation_pearson_ncc.pdf")
-corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab9.tg$ensembl_gene_id), rownames(inter.9.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")
-dev.off()
+write.table(corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab1.tg$ensembl_gene_id), rownames(inter.1.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")[[1]], sep = ";", row.names = rownames(corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab1.tg$ensembl_gene_id), rownames(inter.1.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")[[1]]), file = "~/t.gondi_dc/res/supplementary_data/supplementary_data_5.csv", quote = F)
 
+#pdf("~/t.gondi_dc/res/figures/fig4/inter9_correlation_pearson_ncc.pdf")
+corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab9.tg$ensembl_gene_id), rownames(inter.9.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")[[1]]
+#dev.off()
+
+write.table(corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab9.tg$ensembl_gene_id), rownames(inter.9.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")[[1]], sep = ";", row.names = rownames(corplot.tx(data = se.toxo@assays$SCT@counts, seed = c(unique(tab9.tg$ensembl_gene_id), rownames(inter.9.cor[[2]])), annotation = genes.table.tg, method = "square",order = "AOE", clust = "average")[[1]]),file ="~/t.gondi_dc/res/supplementary_data/supplementary_data_6.csv", quote = F )
 
 ```
 
@@ -273,7 +276,7 @@ dev.off()
 ```
 
 
-##CRIPSR comparison 
+##CRISPR comparison 
 
 ```{r, averaged gene expression across cells of toxo genes (grouped by clusters), fig.width = 5, fig.height=10}
 
