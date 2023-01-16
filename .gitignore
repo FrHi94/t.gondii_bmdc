@@ -7,3 +7,4 @@ scripts/.Rhistory
 scripts/.ipynp_checkpoints
 res/figures
 res/seurat-objects
+*/.DS_Store
