@@ -1,3 +1,9 @@
 res/figures/*
-res/seurat-objects/*
+res/seurat-objects
 scripts/.RData
+scripts/.Rhistory
+scripts/.RData
+scripts/.Rhistory
+scripts/.ipynp_checkpoints
+res/figures
+res/seurat-objects
