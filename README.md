@@ -13,15 +13,15 @@ We find that the two parasite lineages distinctly manipulate two subpopulations 
 
    - **`FACS_sorting`** contains files describing gating strategies for sorting of infected BMDCs in '.docx' format
 
-   - **`cnt`** contains 
+   - **`cnt`** contains
 
-      - raw (non-normalized) count-matrix after mapping ('cnt_mus_toxo_raw.csv') after filtering cells
+   - raw (non-normalized) count-matrix after mapping ('cnt_mus_toxo_raw.csv') after filtering cells
 
-   	- count-matrix from microarray experiments ('GSE134869_SP7_umi_counts.tsv.gz') by Pandey et al. `(1)`
+   - count-matrix from microarray experiments ('GSE134869_SP7_umi_counts.tsv.gz') by Pandey et al. `(1)`
 
-   	- normalized read counts for mouse data ('mouse-DC-counts-filter.csv')
+   - normalized read counts for mouse data ('mouse-DC-counts-filter.csv')
 
-   	- normalized read counts for *Toxoplasma gondii* data ('toxo-DC-counts.csv')
+   - normalized read counts for *Toxoplasma gondii* data ('toxo-DC-counts.csv')
 
 
    - **`cnt/feat_count`** contains raw (non-normalized) count-matrices for individual plates used for smartSeq2 protocol
